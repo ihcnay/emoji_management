@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'myapp',
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -74,9 +75,13 @@ WSGI_APPLICATION = "emoji_management.wsgi.application"
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'SElab',  # 你的数据库名称 数据库需要自己提前建好
+        'USER': 'root',  # 你的数据库用户名
+        'PASSWORD': '515210',  # 你的数据库密码
+        # 'HOST': '192.168.1.128',  # 你的数据库主机，留空默认为localhost
+        'PORT': '3306',  # 你的数据库端口
     }
 }
 
