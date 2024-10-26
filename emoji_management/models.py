@@ -36,15 +36,6 @@ def validate_emoji_id(value):
         raise ValidationError('emoji_id must be between 0 and 64.')
 
 
-class EMOJI(models.Model):
-    # emoji_id 字段为 0 到 64 的整数
-    emoji_id = models.PositiveIntegerField(validators=[validate_emoji_id], unique=True)
-
-    # emoji 字段存储实际的表情符号
-    emoji = 0
-    pass
-
-
 class EMOJI_MESSAGE(models.Model):
     # 发送消息的用户，关联 User 模型
     sender = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -55,5 +46,10 @@ class EMOJI_MESSAGE(models.Model):
     # 消息发送时间
     time = models.DateTimeField(auto_now_add=True)
 
-    # 消息所属班级，关联 Class 模型
+    # 消息所属课程，关联 Class 模型
     classid = models.ForeignKey('Class', on_delete=models.CASCADE)
+
+
+class EMOJI(models.Model):
+    id = models.AutoField(primary_key=True)  # 递增的计数器
+    U_code = models.CharField(max_length=10, unique=True)

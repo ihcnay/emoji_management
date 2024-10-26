@@ -45,30 +45,70 @@ def register(request):
     return render(request, 'register.html')
 
 
+
+#todo:根据不同的用户跳转到不同的起始页面
 def home(request):
     username = request.user.username
     return render(request, 'home.html', {'username': username})
 
 
-def send_page(request):             ##转到发送界面，可选择表情和课堂号等
+def stu_class(request):             ##学生点击特定课程后触发
     pass
 
 
-def send_emoji(request):            ##
+def send_emoji(request):            ##学生点击发送表情后触发
     pass
 
 
-def history_page(request):           ##历史查询页面，根据课堂号查询历史表情
+def emoji_history(request):         ##学生点击查询课程历史表情后触发
     pass
 
 
-def view_history(request):
+def th_class(request):              ##教师点击特定课程后触发
     pass
 
 
-def export_page(request):             ##导出数据界面，选择导出方式
+def add_stu(request):               ##教师为特定课程添加学生
     pass
 
 
-def export_to_xxx(request):
+def del_stu(request):               ##教师/管理员将某学生从课程中移除
     pass
+
+
+def view_all(request):             ##教师查看某课程的统计信息
+    pass
+
+
+def export_to_xxx(request):        ##课程信息导出
+    pass
+
+
+def adm_user(request):              ##管理员查看用户数据的统计
+    pass
+
+
+def adm_add_user(request):              ##管理员可增加用户
+    pass
+
+
+def adm_del_user(request):              ##管理员可删除用户
+    pass
+
+
+def adm_class(request):          ##管理员点击某课程
+    pass
+
+
+def adm_del_msg(request):       #管理员有权限删除消息
+    pass
+
+
+def adm_add_class(request):         #管理员有权限增删课程
+    pass
+
+
+def adm_del_class(request):
+    pass
+
+#emoji管理暂定
