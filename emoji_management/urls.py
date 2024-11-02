@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from myapp import views
 
 urlpatterns = [
     path('', views.user_login, name='start'),
