@@ -3,6 +3,9 @@ from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
 from django.contrib import auth, messages
 from myapp.models import *
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 
 def user_login(request):
@@ -92,7 +95,6 @@ def error_page(request):
 
 @login_required
 def user_home(request):
-
     user = request.user  # 获取当前登录用户
 
     # 获取用户身份
@@ -104,15 +106,19 @@ def user_home(request):
 
     # 根据用户身份获取相关课程
     if user_capacity == 1:  # 学生身份
-        classes = Class.objects.filter(students=user)  # 获取学生加入的课程
-    else:  # 教师身份
-        classes = Class.objects.filter(teacher=user)  # 获取教师教授的课程
+        classes = user.student_classes.all()  # 获取学生加入的课程
+    elif user_capacity == 2:  # 教师身份
+        classes = user.teacher_classes.all()  # 获取教师教授的课程
+    else:
+        classes = []  # 未知身份不显示课程
 
-    # 将课程信息传递到模板
+    # 将课程信息和教师标识传递到模板
     return render(request, 'user_home.html', {
         'classes': classes,
-        'user_capacity': dict(USER_TO_CAPACITY.CAPACITY_CHOICES).get(user_capacity, "未知")
+        'is_teacher': user_capacity == 2,  # 标识是否为教师
+        'user_capacity': dict(USER_TO_CAPACITY.CAPACITY_CHOICES).get(user_capacity, "未知"),
     })
+
 
 
 @login_required
@@ -153,20 +159,44 @@ def error_page(request):
 
 def user_class(request,course_id):  ##用户点击特定课程后触发
     try:
-        # 获取课程信息
-        course = Class.objects.get(id=course_id)
+        course = Class.objects.get(classid=classid)
     except Class.DoesNotExist:
         return render(request, 'error_page.html', {'error_message': "课程不存在。"})
 
-        # 根据用户身份，确定显示内容
-    if request.user not in course.students.all() and request.user != course.teacher:
-        return render(request, 'error_page.html', {'error_message': "您无权查看该课程。"})
-
-        # 渲染课程详情模板
     return render(request, 'course_detail.html', {
         'course': course,
-        'students': course.students.all(),  # 假设课程包含学生列表
+        'students': course.students.all(),
     })
+
+
+@csrf_exempt
+@login_required
+def add_course_ajax(request):
+    if request.method == "POST":
+        user = request.user
+
+        # 验证用户是否为教师
+        try:
+            user_capacity = USER_TO_CAPACITY.objects.get(username=user).capacity
+            if user_capacity != 2:
+                return JsonResponse({'error': "您无权添加课程。"}, status=403)
+        except USER_TO_CAPACITY.DoesNotExist:
+            return JsonResponse({'error': "用户未绑定身份。"}, status=400)
+
+        # 创建新课程
+        classid = request.POST.get('classid')
+        classname = request.POST.get('classname', "Unknown Class")
+
+        # 验证课程ID唯一性
+        if Class.objects.filter(classid=classid).exists():
+            return JsonResponse({'error': "课程ID已存在。"}, status=400)
+
+        # 创建课程
+        new_course = Class.objects.create(classid=classid, classname=classname, teacher=user)
+        return JsonResponse({'message': "课程添加成功！"})
+
+    return JsonResponse({'error': "无效的请求方法。"}, status=405)
+
 
 
 def send_emoji(request):  ##学生点击发送表情后触发

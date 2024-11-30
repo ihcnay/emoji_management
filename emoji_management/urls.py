@@ -7,5 +7,6 @@ urlpatterns = [
     path('register', views.register, name='register'),
     path('home', views.home, name='home'),
     path('user_home',views.user_home,name='user_home'),
-    path('course/<int:course_id>/', views.user_class, name='course_detail'),
+    path('course/<str:classid>/', views.user_class, name='course_detail'),
+    path('add_course_ajax/', views.add_course_ajax, name='add_course_ajax'),
 ]

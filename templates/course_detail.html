@@ -1,20 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>课程详情</title>
+    <title>{{ course.classname }}</title>
 </head>
 <body>
     <h1>课程详情</h1>
-    <p>课程名称: {{ course.name }}</p>
-    <p>教师: {{ course.teacher.username }}</p>
-
-    <h2>学生列表</h2>
+    <p>课程ID: {{ course.classid }}</p>
+    <p>课程名称: {{ course.classname }}</p>
+    <h2>学生名单</h2>
     <ul>
         {% for student in students %}
             <li>{{ student.username }}</li>
         {% endfor %}
     </ul>
-
-    <a href="{% url 'user_home' %}">返回课程列表</a>
+    <a href="{% url 'user_home' %}">返回</a>
 </body>
 </html>

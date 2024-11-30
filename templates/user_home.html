@@ -2,14 +2,23 @@
 <html>
 <head>
     <title>用户主页</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
 <body>
     <h1>欢迎 {{ user.username }}！</h1>
     <h2>您参与的课程列表</h2>
 
-    <table border="1">
+    <!-- 添加课程按钮，仅教师可见 -->
+    {% if is_teacher %}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCourseModal">
+            添加课程
+        </button>
+    {% endif %}
+
+    <table class="table">
         <thead>
             <tr>
+                <th>课程ID</th>
                 <th>课程名称</th>
                 <th>操作</th>
             </tr>
@@ -17,10 +26,11 @@
         <tbody>
             {% for cls in classes %}
                 <tr>
-                    <td>{{ cls.name }}</td>
+                    <td>{{ cls.classid }}</td>
+                    <td>{{ cls.classname }}</td>
                     <td>
                         <!-- 点击链接跳转到课程详情 -->
-                        <a href="{% url 'course_detail' cls.id %}">查看详情</a>
+                        <a href="{% url 'course_detail' cls.classid %}">查看详情</a>
                     </td>
                 </tr>
             {% endfor %}
@@ -28,5 +38,52 @@
     </table>
 
     <p>身份: {{ user_capacity }}</p>
+
+    <!-- 模态框 -->
+    <div class="modal fade" id="addCourseModal" tabindex="-1" aria-labelledby="addCourseModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addCourseModalLabel">添加课程</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addCourseForm">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="courseID" class="form-label">课程ID</label>
+                            <input type="text" class="form-control" id="courseID" name="classid" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="courseName" class="form-label">课程名称</label>
+                            <input type="text" class="form-control" id="courseName" name="classname">
+                        </div>
+                        <button type="submit" class="btn btn-primary">提交</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>
+        // AJAX 提交表单
+        $('#addCourseForm').submit(function (e) {
+            e.preventDefault();
+            $.ajax({
+                url: "{% url 'add_course_ajax' %}",
+                type: "POST",
+                data: $(this).serialize(),
+                success: function (response) {
+                    alert(response.message);
+                    location.reload(); // 刷新页面以更新课程列表
+                },
+                error: function (xhr) {
+                    alert("添加课程失败：" + xhr.responseJSON.error);
+                }
+            });
+        });
+    </script>
 </body>
 </html>
