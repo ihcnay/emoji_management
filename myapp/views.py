@@ -24,25 +24,38 @@ def login(request):
 
 def register(request):
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        email = request.POST.get('email')
-        if User.objects.filter(email=email).exists():
-            messages.error(request, '邮箱已被注册')
-            return render(request, 'register.html')
-        else:
+        try:
+            username = request.POST.get('username')
+            password = request.POST.get('password')
+            email = request.POST.get('email')
+
+            # 检查邮箱是否已被注册
+            if User.objects.filter(email=email).exists():
+                messages.error(request, '邮箱已被注册')
+                return render(request, 'register.html')
+
+            # 检查用户名是否已存在
             if User.objects.filter(username=username).exists():
                 messages.error(request, '账号已存在')
                 return render(request, 'register.html')
-            else:
-                user = User.objects.create_user(username=username, password=password, email=email)
-                user.save()
-                if user:
-                    capacity = request.POST.get('capacity')
-                    user_capacity = USER_TO_CAPACITY.objects.create(user=user, capacity=capacity)
-                    user_capacity.save()
-                    messages.success(request, '注册成功！')
-                    return redirect('login')
+
+            # 创建用户
+            user = User.objects.create_user(username=username, password=password, email=email)
+            user.save()
+
+            # 创建用户容量记录
+            if user:
+                capacity = request.POST.get('capacity') or 1
+                user_capacity = USER_TO_CAPACITY.objects.create(username=user, capacity=capacity)
+                user_capacity.save()
+                messages.success(request, '注册成功！')
+                return redirect('login')
+
+        except Exception as e:
+            # 记录异常和回溯信息
+            messages.error(request, '发生错误，请稍后再试')
+            return render(request, 'register.html')
+
     return render(request, 'register.html')
 
 
