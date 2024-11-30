@@ -15,20 +15,17 @@ class USER_TO_CAPACITY(models.Model):
     capacity = models.IntegerField(choices=CAPACITY_CHOICES)
 
 
-class TEACHER_TO_CLASS(models.Model):
-    username = models.ForeignKey(User, on_delete=models.CASCADE)
-    classid = models.CharField(max_length=20, unique=True)
-    classname = models.CharField(max_length=100)
-
-    class Meta:
-        unique_together = (('username', 'classid'),)
-
-
 class Class(models.Model):
-    classid = models.CharField(max_length=20, unique=True)
+    classid = models.CharField(max_length=20, unique=True)  # 课程唯一标识，必填
+    classname = models.CharField(max_length=100,
+                                 default="Unknown Class", null=True, blank=True)  # 课程名称，可为空，带默认值
+    teacher = models.ForeignKey(User, on_delete=models.CASCADE,
+                                related_name='teacher_classes', null=True, blank=True)  # 授课教师，可为空
+    students = models.ManyToManyField(User, related_name='student_classes', blank=True)  # 学生名单，可为空
+    #注:manytomany实际上是创建了另一个classid和student的对应表
 
-    students =  models.ManyToManyField(User, related_name='student_classes')
-    #允许你从 User 模型反向访问班级，student.classes.all() 将列出该学生所属的所有班级
+    def __str__(self):
+        return self.classname or "Unknown Class"  # 如果 classname 为空，显示 "Unknown Class"
 
 
 def validate_emoji_id(value):
@@ -48,6 +45,7 @@ class EMOJI_MESSAGE(models.Model):
 
     # 消息所属课程，关联 Class 模型
     classid = models.ForeignKey('Class', on_delete=models.CASCADE)
+
 
 
 class EMOJI(models.Model):
