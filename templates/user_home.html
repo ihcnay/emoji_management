@@ -1,10 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+    <title>用户主页</title>
 </head>
 <body>
+    <h1>欢迎 {{ user.username }}！</h1>
+    <h2>您参与的课程列表</h2>
 
+    <table border="1">
+        <thead>
+            <tr>
+                <th>课程名称</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cls in classes %}
+                <tr>
+                    <td>{{ cls.name }}</td>
+                    <td>
+                        <!-- 点击链接跳转到课程详情 -->
+                        <a href="{% url 'course_detail' cls.id %}">查看详情</a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <p>身份: {{ user_capacity }}</p>
 </body>
 </html>

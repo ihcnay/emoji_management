@@ -151,8 +151,22 @@ def error_page(request):
     pass
 
 
-def stu_class(request):  ##学生点击特定课程后触发
-    pass
+def user_class(request,course_id):  ##用户点击特定课程后触发
+    try:
+        # 获取课程信息
+        course = Class.objects.get(id=course_id)
+    except Class.DoesNotExist:
+        return render(request, 'error_page.html', {'error_message': "课程不存在。"})
+
+        # 根据用户身份，确定显示内容
+    if request.user not in course.students.all() and request.user != course.teacher:
+        return render(request, 'error_page.html', {'error_message': "您无权查看该课程。"})
+
+        # 渲染课程详情模板
+    return render(request, 'course_detail.html', {
+        'course': course,
+        'students': course.students.all(),  # 假设课程包含学生列表
+    })
 
 
 def send_emoji(request):  ##学生点击发送表情后触发
@@ -160,10 +174,6 @@ def send_emoji(request):  ##学生点击发送表情后触发
 
 
 def emoji_history(request):  ##学生点击查询课程历史表情后触发
-    pass
-
-
-def th_class(request):  ##教师点击特定课程后触发
     pass
 
 
