@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>管理员主页</title>
+</head>
+<body>
+    <h1>欢迎管理员 {{ user.username }}</h1>
+    <h2>课程统计信息</h2>
+    <p>总课程数: {{ total_classes }}</p>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>课程名称</th>
+                <th>教师</th>
+                <th>学生人数</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stat in class_stats %}
+                <tr>
+                    <td>{{ stat.class.name }}</td>
+                    <td>{{ stat.class.teacher.username }}</td>
+                    <td>{{ stat.student_count }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

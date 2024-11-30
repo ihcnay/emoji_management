@@ -59,7 +59,6 @@ def register(request):
     return render(request, 'register.html')
 
 
-# todo:根据不同的用户跳转到不同的起始页面
 def home(request):
     user = request.user
     if not user.is_authenticated:
@@ -93,6 +92,7 @@ def error_page(request):
 
 @login_required
 def user_home(request):
+
     user = request.user  # 获取当前登录用户
 
     # 获取用户身份
@@ -105,10 +105,8 @@ def user_home(request):
     # 根据用户身份获取相关课程
     if user_capacity == 1:  # 学生身份
         classes = Class.objects.filter(students=user)  # 获取学生加入的课程
-    elif user_capacity == 2:  # 教师身份
+    else:  # 教师身份
         classes = Class.objects.filter(teacher=user)  # 获取教师教授的课程
-    else:  # 管理员身份
-        classes = Class.objects.all()  # 管理员查看所有课程
 
     # 将课程信息传递到模板
     return render(request, 'user_home.html', {
@@ -117,8 +115,36 @@ def user_home(request):
     })
 
 
+@login_required
 def admin_home(request):
-    pass
+    # 检查用户是否为管理员
+    user = request.user
+    try:
+        user_capacity = USER_TO_CAPACITY.objects.get(username=user).capacity
+    except USER_TO_CAPACITY.DoesNotExist:
+        return render(request, 'error_page.html', {'error_message': "用户未绑定身份。"})
+
+    if user_capacity != 3:  # 如果不是管理员，跳转到错误页面
+        return render(request, 'error_page.html', {'error_message': "无权限访问该页面。"})
+
+    # 查询所有课程信息
+    all_classes = Class.objects.all()
+
+    # 统计课程总数和学生人数等信息（可选）
+    class_stats = []
+    for cls in all_classes:
+        student_count = cls.students.count()  # Class 模型有一个 ManyToManyField 关联到学生
+        class_stats.append({
+            'class': cls,
+            'student_count': student_count,
+        })
+
+    # 将所有课程信息传递到模板
+    return render(request, 'admin_home.html', {
+        'all_classes': all_classes,
+        'class_stats': class_stats,
+        'total_classes': all_classes.count(),
+    })
 
 
 def error_page(request):

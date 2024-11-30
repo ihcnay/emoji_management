@@ -18,7 +18,6 @@ class USER_TO_CAPACITY(models.Model):
 class TEACHER_TO_CLASS(models.Model):
     username = models.ForeignKey(User, on_delete=models.CASCADE)
     classid = models.CharField(max_length=20, unique=True)
-    classname = models.CharField(max_length=100)
 
     class Meta:
         unique_together = (('username', 'classid'),)
@@ -26,7 +25,7 @@ class TEACHER_TO_CLASS(models.Model):
 
 class Class(models.Model):
     classid = models.CharField(max_length=20, unique=True)
-
+    classname = models.CharField(max_length=100)
     students =  models.ManyToManyField(User, related_name='student_classes')
     #允许你从 User 模型反向访问班级，student.classes.all() 将列出该学生所属的所有班级
 
