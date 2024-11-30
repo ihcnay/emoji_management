@@ -22,7 +22,7 @@ class Class(models.Model):
     teacher = models.ForeignKey(User, on_delete=models.CASCADE,
                                 related_name='teacher_classes', null=True, blank=True)  # 授课教师，可为空
     students = models.ManyToManyField(User, related_name='student_classes', blank=True)  # 学生名单，可为空
-    #注:manytomany实际上是创建了另一个classid和student的对应表
+    #注:manytomanyfield实际上是创建了另一个classid和student的对应表
 
     def __str__(self):
         return self.classname or "Unknown Class"  # 如果 classname 为空，显示 "Unknown Class"
