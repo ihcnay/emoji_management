@@ -5,7 +5,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
 <body>
-    <h1>欢迎 {{ user.username }}！</h1>
+    <h1>欢迎您，用户{{ user.username }}！</h1>
     <h2>您参与的课程列表</h2>
 
     <!-- 消息显示区域 -->
@@ -23,6 +23,7 @@
             <tr>
                 <th>课程ID</th>
                 <th>课程名称</th>
+                <th>学生人数</th>  <!-- 新增列：显示学生人数 -->
                 <th>操作</th>
             </tr>
         </thead>
@@ -31,9 +32,18 @@
                 <tr>
                     <td>{{ cls.classid }}</td>
                     <td>{{ cls.classname }}</td>
+                    <td>{{ cls.students.count }}</td>  <!-- 显示学生人数 -->
                     <td>
                         <!-- 点击链接跳转到课程详情 -->
                         <a href="{% url 'course_detail' cls.classid %}">进入课程</a>
+                         {% if is_teacher %}
+                            <!-- 添加学生按钮 -->
+                            <button class="btn btn-secondary btn-sm" data-bs-toggle="modal"
+                                    data-bs-target="#addStudentModal"
+                                    data-classid="{{ cls.classid }}">
+                                添加学生
+                            </button>
+                        {% endif %}
                     </td>
                 </tr>
             {% endfor %}
@@ -42,7 +52,7 @@
 
     <p>您的身份是: {{ user_capacity }}</p>
 
-    <!-- 模态框 -->
+    <!-- 添加课程模态框 -->
     <div class="modal fade" id="addCourseModal" tabindex="-1" aria-labelledby="addCourseModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -67,45 +77,165 @@
             </div>
         </div>
     </div>
+    <!-- 添加学生模态框 -->
+    <div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addStudentModalLabel">添加学生</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addStudentForm">
+                        {% csrf_token %}
+                        <!-- 隐藏的课程 ID -->
+                        <input type="hidden" id="modalClassID" name="classid">
+                        <div class="mb-3">
+                            <label for="studentID" class="form-label">学生ID</label>
+                            <input type="text" class="form-control" id="studentID" name="studentid" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">提交</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script>
-        // AJAX 提交表单
-        $('#addCourseForm').submit(function (e) {
-            e.preventDefault();
-            $.ajax({
-                url: "{% url 'add_course_ajax' %}",
-                type: "POST",
-                data: $(this).serialize(),
-                success: function (response) {
-                    // 保存后端返回的消息到 localStorage
-                    localStorage.setItem('successMessage', response.message);
-                    location.reload(); // 刷新页面以更新课程列表
-                },
-                error: function (xhr) {
-                    alert("添加课程失败：" + xhr.responseJSON.error);
-                }
-            });
-        });
+    // 监听模态框打开事件，动态填充课程 ID
+    const addStudentModal = document.getElementById('addStudentModal');
+    addStudentModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget; // 触发按钮
+        const classID = button.getAttribute('data-classid'); // 获取课程 ID
+        const modalClassIDInput = document.getElementById('modalClassID');
+        modalClassIDInput.value = classID; // 设置隐藏的课程 ID
+    });
 
-        // 页面加载时显示消息
-        $(document).ready(function () {
-            const message = localStorage.getItem('successMessage');
-            if (message) {
-                // 显示消息框
-                const messageBox = $('#messageBox');
-                messageBox.text(message).removeClass('d-none').addClass('alert-success'); // 设置成功样式
-                localStorage.removeItem('successMessage'); // 清除消息以防止重复显示
+    // 处理添加学生表单提交
+    const addStudentForm = document.getElementById('addStudentForm');
+    addStudentForm.addEventListener('submit', function (event) {
+        event.preventDefault();
 
-                // 自动隐藏消息框
-                setTimeout(() => {
-                    messageBox.fadeOut('slow', function () {
-                        $(this).addClass('d-none');
-                    });
-                }, 5000); // 5秒后隐藏
+        const formData = new FormData(addStudentForm);
+        const submitButton = addStudentForm.querySelector('button[type="submit"]');
+        submitButton.disabled = true; // 禁用提交按钮
+
+        // 使用 fetch 提交数据
+        fetch('{% url "add_student" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token }}' // 添加 CSRF 令牌头
             }
+        })
+        .then(response => response.ok ? response.json() : Promise.reject('HTTP error!'))
+        .then(data => handleResponse(data, submitButton, '#addStudentModal'))
+        .catch(error => handleError(error, submitButton, '#addStudentModal'))
+        .finally(() => {
+            submitButton.disabled = false; // 启用提交按钮
         });
+    });
+
+    // 处理添加课程表单提交
+    const addCourseForm = document.getElementById('addCourseForm');
+    addCourseForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+
+        const formData = new FormData(addCourseForm);
+        const submitButton = addCourseForm.querySelector('button[type="submit"]');
+        submitButton.disabled = true; // 禁用提交按钮
+
+        // 使用 fetch 提交数据
+        fetch('{% url "add_course_ajax" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token }}' // 添加 CSRF 令牌头
+            }
+        })
+        .then(response => response.ok ? response.json() : Promise.reject('HTTP error!'))
+        .then(data => handleResponse(data, submitButton, '#addCourseModal'))
+        .catch(error => handleError(error, submitButton, '#addCourseModal'))
+        .finally(() => {
+            submitButton.disabled = false; // 启用提交按钮
+        });
+    });
+
+    // 处理成功响应
+    function handleResponse(data, submitButton, modalId) {
+        const messageBox = $('#messageBox');
+        messageBox.removeClass('d-none alert-danger alert-info alert-success'); // 清除之前的状态类
+        if (data.success) {
+            messageBox.addClass('alert-success');
+            messageBox.text('操作成功！');
+        } else {
+            messageBox.addClass('alert-danger');
+            messageBox.text(data.error || '操作失败！');
+        }
+
+        // 隐藏模态框
+        const modalInstance = bootstrap.Modal.getInstance($(modalId)[0]);
+        modalInstance.hide(); // 确保模态框关闭
+
+        // 自动隐藏消息框
+        setTimeout(() => {
+            messageBox.fadeOut('slow', function () {
+                $(this).addClass('d-none');
+            });
+        }, 5000); // 5秒后隐藏
+
+        // 禁用页面交互
+        disablePageInteractions();
+
+        setTimeout(() => {
+            location.reload();
+        }, 5000);  // 5秒后刷新页面
+    }
+
+    // 处理错误响应
+    function handleError(error, submitButton, modalId) {
+        const messageBox = $('#messageBox');
+        messageBox.removeClass('d-none alert-success alert-info alert-danger'); // 清除之前的状态类
+        messageBox.addClass('alert-danger'); // 确保加上错误样式
+        messageBox.text(error);
+
+        // 显示消息框
+        messageBox.removeClass('d-none'); // 确保消息框显示
+
+        // 隐藏模态框
+        const modalInstance = bootstrap.Modal.getInstance($(modalId)[0]);
+        modalInstance.hide(); // 确保模态框关闭
+
+        // 自动隐藏消息框
+        setTimeout(() => {
+            messageBox.fadeOut('slow', function () {
+                $(this).addClass('d-none');
+            });
+        }, 5000); // 5秒后隐藏
+
+        // 启用提交按钮
+        submitButton.disabled = false;
+
+        // 禁用页面交互
+        disablePageInteractions();
+
+        setTimeout(() => {
+            location.reload();
+        }, 5000);  // 5秒后刷新页面
+    }
+
+    // 禁用页面所有交互
+    function disablePageInteractions() {
+        // 禁用所有按钮和表单元素
+        $('button, input, select, textarea, a').prop('disabled', true);
+
+        // 设置 pointer-events 为 none 来禁用页面交互
+        $('body').css('pointer-events', 'none');
+    }
     </script>
 </body>
 </html>

@@ -20,6 +20,10 @@
                 <th>教师</th>
                 <td>{{ course.teacher.username }}</td>
             </tr>
+            <tr>
+                <th>学生人数</th>
+                <td>{{ total_students|default:"0" }}</td>  <!-- 显示总学生人数 -->
+            </tr>
         </table>
 
         <h3>过往消息</h3>

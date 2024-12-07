@@ -21,6 +21,7 @@ def login(request):
             return redirect('home')
         else:
             messages.error(request, '账号或密码错误')
+            return render(request, "login.html", {'username': username})
     return render(request, "login.html")
 
 
@@ -212,11 +213,17 @@ def add_course_ajax(request):
 
 @login_required
 def course_detail(request, classid):
-    course = get_object_or_404(Class, classid=classid)
-    msgs = EMOJI_MESSAGE.objects.filter(classid=course).order_by('-time')  # 获取该课程的所有消息
-    emojis = EMOJI.objects.all()  # 获取所有 emoji
+    course = Course.objects.get(classid=classid)
+    total_students = course.students.count()  # 获取学生人数
+    emojis = Emoji.objects.all()  # 获取所有表情
+    msgs= Message.objects.filter(course=course)  # 获取该课程的消息
 
-    return render(request, 'course_detail.html', {'course': course, 'messages': msgs, 'emojis': emojis})
+    return render(request, 'course_detail.html', {
+        'course': course,
+        'total_students': total_students,
+        'emojis': emojis,
+        'messages': msgs,
+    })
 
 
 @login_required
@@ -267,8 +274,46 @@ def emoji_history(request):  ##学生点击查询课程历史表情后触发
     pass
 
 
-def add_stu(request):  ##教师为特定课程添加学生
-    pass
+@csrf_exempt
+@login_required
+def add_student(request):
+    if not hasattr(request.user, 'user_to_capacity') or request.user.user_to_capacity.capacity != 2:
+        # 检查是否为教师身份
+        return JsonResponse({'success': False, 'error': '您无权限执行此操作。'})
+
+    if request.method == 'POST':
+        classid = request.POST.get('classid')
+        student_username = request.POST.get('studentid')
+
+        try:
+            # 获取课程
+            cls = Class.objects.get(classid=classid)
+
+            # 检查是否为当前教师的课程
+            if cls.teacher != request.user:
+                return JsonResponse({'success': False, 'error': '您只能为自己的课程添加学生！'})
+
+            # 获取学生
+            student = User.objects.get(username=student_username)
+
+            # 检查学生身份
+            if not hasattr(student, 'user_to_capacity') or student.user_to_capacity.capacity != 1:
+                return JsonResponse({'success': False, 'error': f'用户 {student_username} 不是学生身份，无法添加！'})
+
+            # 检查学生是否已经在课程中
+            if cls.students.filter(id=student.id).exists():
+                return JsonResponse({'success': False, 'error': f'学生 {student_username} 已经在课程中！'})
+
+            # 添加学生
+            cls.students.add(student)
+            return JsonResponse({'success': True})
+
+        except ObjectDoesNotExist:
+            return JsonResponse({'success': False, 'error': '课程或用户不存在！'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    return JsonResponse({'success': False, 'error': '无效请求！'})
 
 
 def del_stu(request):  ##教师/管理员将某学生从课程中移除

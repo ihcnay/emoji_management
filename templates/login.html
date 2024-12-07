@@ -174,7 +174,8 @@
         <form class="form" id="form1" method="post" action="login">
             <h2 class="form__title">欢迎使用教学科研登记系统</h2>
             {% csrf_token %}
-            <input type="text" name="username" placeholder="请输入账号" class="input" required/>
+             <input type="text" name="username" placeholder="请输入账号" class="input"
+                   value="{{ username|default:'' }}" required/>
             <input type="password" name="password" placeholder="密码" class="input" required/>
             <a href="{% url 'register' %}" class="link">还未注册？请点击这里!</a>
             <!-- login.html -->
