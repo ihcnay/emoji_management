@@ -176,17 +176,12 @@
     <!-- Sign In -->
     <div class="container__form container--signin">
       <form class="form" id="form1" method="post" action="{% url 'register' %}">
-        <h2 class="form__title">请注册您的账号</h2>
+        <h2 class="form__title">注册账号</h2>
         {% csrf_token %}
 
-        <!-- 用户名 -->
-        <input type="text" name="username" placeholder="请输入账号" class="input" required />
-
-        <!-- 邮箱 -->
-        <input type="email" name="email" placeholder="邮箱" class="input" required />
-
-        <!-- 密码 -->
+        <input type="text" name="username" placeholder="用户名" class="input" required />
         <input type="password" name="password" placeholder="密码" class="input" required />
+        <input type="email" name="email" placeholder="邮箱" class="input" required />
 
         <!-- 用户身份选择 -->
         <label for="user-role" class="form-label">选择您的身份</label>
