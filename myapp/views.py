@@ -90,7 +90,7 @@ def home(request):
 
     except USER_TO_CAPACITY.DoesNotExist:
         # 如果用户未绑定身份，则跳转到错误页面并传递错误原因
-        error_reason = "user_not_bound"
+        error_reason = "user_not_found"
 
         return redirect(f'error_page?reason={error_reason}')
 
