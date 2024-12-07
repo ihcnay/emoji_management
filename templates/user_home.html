@@ -8,6 +8,9 @@
     <h1>欢迎 {{ user.username }}！</h1>
     <h2>您参与的课程列表</h2>
 
+    <!-- 消息显示区域 -->
+    <div id="messageBox" class="alert alert-info d-none" role="alert"></div>
+
     <!-- 添加课程按钮，仅教师可见 -->
     {% if is_teacher %}
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCourseModal">
@@ -30,14 +33,14 @@
                     <td>{{ cls.classname }}</td>
                     <td>
                         <!-- 点击链接跳转到课程详情 -->
-                        <a href="{% url 'course_detail' cls.classid %}">查看详情</a>
+                        <a href="{% url 'course_detail' cls.classid %}">进入课程</a>
                     </td>
                 </tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <p>身份: {{ user_capacity }}</p>
+    <p>您的身份是: {{ user_capacity }}</p>
 
     <!-- 模态框 -->
     <div class="modal fade" id="addCourseModal" tabindex="-1" aria-labelledby="addCourseModalLabel" aria-hidden="true">
@@ -76,13 +79,32 @@
                 type: "POST",
                 data: $(this).serialize(),
                 success: function (response) {
-                    alert(response.message);
+                    // 保存后端返回的消息到 localStorage
+                    localStorage.setItem('successMessage', response.message);
                     location.reload(); // 刷新页面以更新课程列表
                 },
                 error: function (xhr) {
                     alert("添加课程失败：" + xhr.responseJSON.error);
                 }
             });
+        });
+
+        // 页面加载时显示消息
+        $(document).ready(function () {
+            const message = localStorage.getItem('successMessage');
+            if (message) {
+                // 显示消息框
+                const messageBox = $('#messageBox');
+                messageBox.text(message).removeClass('d-none').addClass('alert-success'); // 设置成功样式
+                localStorage.removeItem('successMessage'); // 清除消息以防止重复显示
+
+                // 自动隐藏消息框
+                setTimeout(() => {
+                    messageBox.fadeOut('slow', function () {
+                        $(this).addClass('d-none');
+                    });
+                }, 5000); // 5秒后隐藏
+            }
         });
     </script>
 </body>
