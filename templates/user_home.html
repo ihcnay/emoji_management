@@ -6,19 +6,15 @@
 </head>
 <body>
     <h1>欢迎您，用户{{ user.username }}！</h1>
+    <h2>您的身份是: {{ user_capacity }}</h2>
     <h2>您参与的课程列表</h2>
 
     <!-- 消息显示区域 -->
     <div id="messageBox" class="alert alert-info d-none" role="alert"></div>
 
-    <!-- 添加课程按钮，仅教师可见 -->
-    {% if is_teacher %}
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCourseModal">
-            添加课程
-        </button>
-    {% endif %}
 
-    <table class="table">
+
+    <table class="table table-bordered">
         <thead>
             <tr>
                 <th>课程ID</th>
@@ -55,8 +51,12 @@
             {% endfor %}
         </tbody>
     </table>
-
-    <p>您的身份是: {{ user_capacity }}</p>
+    <!-- 添加课程按钮，仅教师可见 -->
+    {% if is_teacher %}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCourseModal">
+            添加课程
+        </button>
+    {% endif %}
 
     <!-- 添加课程模态框 -->
     <div class="modal fade" id="addCourseModal" tabindex="-1" aria-labelledby="addCourseModalLabel" aria-hidden="true">

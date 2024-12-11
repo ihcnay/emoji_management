@@ -95,7 +95,7 @@
                     <form id="emojiSelectForm">
                         {% csrf_token %}
                         <div class="form-group">
-                            <label for="emojiSelect" class="form-label">选择表情</label>
+                            <label class="form-label">选择表情</label>
                             <div class="emoji-list">
                                  {% if emojis %}
                                     {% for emoji in emojis %}
@@ -119,8 +119,40 @@
 
         <!-- 水平排列按钮 -->
         <div class="row mt-3">
-            <div class="col">
+            <div class="d-flex gap-2">
+                {% if is_teacher %}
+                <!-- 教师查看统计数据按钮 -->
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#statisticsModal">查看课程统计数据</button>
+                {% endif %}
                 <a href="{% url 'user_home' %}" class="btn btn-secondary">返回主页</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框：统计数据 -->
+    <div class="modal fade" id="statisticsModal" tabindex="-1" aria-labelledby="statisticsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statisticsModalLabel">课程消息统计数据</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {% if emoji_statistics.total_count > 0 %}
+                        <h6>总发送表情数: {{ emoji_statistics.total_count }}</h6>
+                        <h6>发送最多的前 5 种表情:</h6>
+                        <ul>
+                            {% for emoji_stat in emoji_statistics.top_emojis %}
+                            <li style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <img src="{% static 'emoji/'|add:emoji_stat.emoji_id__U_code|add:'.png' %}" class="emoji-img" alt="{{ emoji_stat.emoji_id__description }}" style="margin-right: 10px;">
+                                {{ emoji_stat.emoji_id__description }} ({{ emoji_stat.count }} 次)
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="no-messages">暂无学生发送消息</p>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>

@@ -28,7 +28,7 @@
     body {
       align-items: center;
       background-color: var(--white);
-      background: url("/static/picture/P1.jpg");
+      background: url("/static/picture/bg.png");
       background-attachment: fixed;
       background-position: center;
       background-repeat: no-repeat;
@@ -172,7 +172,7 @@
     <!-- Sign In -->
     <div class="container__form container--signin">
         <form class="form" id="form1" method="post" action="login">
-            <h2 class="form__title">欢迎使用教学科研登记系统</h2>
+            <h2 class="form__title">欢迎使用课堂emoji管理系统</h2>
             {% csrf_token %}
              <input type="text" name="username" placeholder="请输入账号" class="input"
                    value="{{ username|default:'' }}" required/>

@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect
 from django.contrib import auth, messages
 from myapp.models import *
 from django.http import JsonResponse
@@ -8,6 +8,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
 from django.views.decorators.http import require_POST
 import json
+from django.shortcuts import render, HttpResponseRedirect
+from django.db.models import Count
 
 
 def user_login(request):
@@ -209,10 +211,26 @@ def add_course_ajax(request):
 @login_required
 def course_detail(request, classid):
     try:
+        # 获取课程信息
         course = Class.objects.get(classid=classid)
         total_students = course.students.count()  # 获取学生人数
         emojis = EMOJI.objects.all()  # 获取所有表情
-        msgs= EMOJI_MESSAGE.objects.filter(classid=course)  # 获取该课程的消息
+        msgs = EMOJI_MESSAGE.objects.filter(classid=course)  # 获取该课程的消息
+
+        # 统计表情消息
+        total_emoji_count = msgs.exclude(emoji_id__isnull=True).count()  # 总发送表情数
+        top_5_emojis = (
+            msgs.values('emoji_id__description', 'emoji_id__U_code')  # 使用有效字段
+            .annotate(count=Count('emoji_id'))
+            .order_by('-count')[:5]
+        )
+
+        # 将统计数据封装到字典中
+        emoji_statistics = {
+            'total_count': total_emoji_count,
+            'top_emojis': top_5_emojis,
+        }
+
         # 获取当前用户的角色
         user_capacity = USER_TO_CAPACITY.objects.get(username=request.user).capacity
 
@@ -224,6 +242,7 @@ def course_detail(request, classid):
             'total_students': total_students,
             'emojis': emojis,
             'messages': msgs,
+            'emoji_statistics': emoji_statistics,  # 传递表情统计数据
             'is_teacher': is_teacher,  # 传递用户是否为教师的信息
         })
     except Class.DoesNotExist:
