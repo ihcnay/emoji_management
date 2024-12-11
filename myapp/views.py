@@ -19,13 +19,18 @@ def login(request):
         username = request.POST.get('username')
         password = request.POST.get('password')
         user = auth.authenticate(username=username, password=password)
+
         if user:
             auth.login(request, user)  # 这里做了登录
-            return redirect('home')
+            return redirect('home')  # 登录成功后重定向到主页
         else:
             messages.error(request, '账号或密码错误')
             return render(request, "login.html", {'username': username})
-    return render(request, "login.html")
+
+    # 在 GET 请求时，防止浏览器缓存页面
+    response = render(request, "login.html")
+    response['Cache-Control'] = 'no-store'  # 禁止浏览器缓存
+    return response
 
 
 def register(request):
@@ -208,14 +213,23 @@ def course_detail(request, classid):
         total_students = course.students.count()  # 获取学生人数
         emojis = EMOJI.objects.all()  # 获取所有表情
         msgs= EMOJI_MESSAGE.objects.filter(classid=course)  # 获取该课程的消息
+        # 获取当前用户的角色
+        user_capacity = USER_TO_CAPACITY.objects.get(username=request.user).capacity
+
+        # 判断当前用户是否是教师
+        is_teacher = user_capacity == 2  # 如果是教师，capacity 值为 2
+
         return render(request, 'course_detail.html', {
             'course': course,
             'total_students': total_students,
             'emojis': emojis,
             'messages': msgs,
+            'is_teacher': is_teacher,  # 传递用户是否为教师的信息
         })
     except Class.DoesNotExist:
-        return redirect('error_page')  # 替换为你实际的错误页面路由，或者主页路由
+        # 如果课程不存在，返回上一页面（原页面）
+        referer = request.META.get('HTTP_REFERER', '/')  # 获取来源页面，如果没有则跳转到主页
+        return HttpResponseRedirect(referer)  # 返回上一页，或指定一个主页 URL
 
 
 @login_required

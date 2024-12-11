@@ -44,7 +44,7 @@
                 <td>{{ course.classname }}</td>
             </tr>
             <tr>
-                <th>教师</th>
+                <th>教师ID</th>
                 <td>{{ course.teacher.username }}</td>
             </tr>
             <tr>
@@ -78,9 +78,11 @@
             {% endif %}
         </div>
 
-        <h4>发送新消息</h4>
+        <h4>发送新消息(仅学生可用)</h4>
+        <!-- 只有当用户不是教师时才显示发送按钮 -->
+    {% if not is_teacher %}
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#emojiModal">选择表情</button>
-
+    {% endif %}
     <!-- Modal -->
     <div class="modal fade" id="emojiModal" tabindex="-1" aria-labelledby="emojiModalLabel" aria-hidden="true">
         <div class="modal-dialog">
