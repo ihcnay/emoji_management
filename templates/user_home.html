@@ -43,6 +43,12 @@
                                     data-classid="{{ cls.classid }}">
                                 添加学生
                             </button>
+                            <!-- 查看学生按钮 -->
+                            <button class="btn btn-info btn-sm" data-bs-toggle="modal"
+                                    data-bs-target="#viewStudentsModal"
+                                    data-classid="{{ cls.classid }}">
+                                查看学生
+                            </button>
                         {% endif %}
                     </td>
                 </tr>
@@ -96,6 +102,32 @@
                         </div>
                         <button type="submit" class="btn btn-primary">提交</button>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 查看学生模态框 -->
+    <div class="modal fade" id="viewStudentsModal" tabindex="-1" aria-labelledby="viewStudentsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewStudentsModalLabel">学生列表</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>学生ID</th>
+                                <th>姓名</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentList">
+                            <!-- 学生列表动态加载 -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -164,7 +196,80 @@
             submitButton.disabled = false; // 启用提交按钮
         });
     });
+    // 处理查看学生按钮的点击
+    const viewStudentsModal = document.getElementById('viewStudentsModal');
+    viewStudentsModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget; // 触发按钮
+        const classID = button.getAttribute('data-classid'); // 获取课程 ID
 
+        // 发起请求加载学生列表
+        fetch(`{% url 'get_students_in_course' %}?classid=${classID}`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+        .then(response => response.ok ? response.json() : Promise.reject('加载失败！'))
+        .then(data => {
+            const studentList = document.getElementById('studentList');
+            studentList.innerHTML = ''; // 清空旧内容
+
+            if (data.students && data.students.length > 0) {
+                data.students.forEach(student => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${student.id}</td>
+                        <td>${student.name}</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm remove-student-btn" data-studentid="${student.id}" data-classid="${classID}">移除</button>
+                        </td>
+                    `;
+                    studentList.appendChild(row);
+                });
+
+                // 添加事件监听到所有移除按钮
+                document.querySelectorAll('.remove-student-btn').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const studentID = this.getAttribute('data-studentid');
+                        const courseID = this.getAttribute('data-classid');
+
+                        // 发起请求移除学生
+                        fetch('{% url "remove_student_from_course" %}', {
+                            method: 'POST',
+                            body: JSON.stringify({ classid: courseID, studentid: studentID }),
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                        })
+                        .then(response => response.ok ? response.json() : Promise.reject('移除失败！'))
+                        .then(data => {
+                            if (data.success) {
+                                this.closest('tr').remove(); // 移除学生行
+                                alert('学生移除成功！');
+                                disablePageInteractions();
+                                // 5秒后自动刷新页面
+                                setTimeout(() => {
+                                    location.reload();  // 刷新页面
+                                }, 2000);
+                            } else {
+                                alert(data.error || '移除失败！');
+                            }
+                        })
+                        .catch(error => alert(error));
+                    });
+                });
+            } else {
+                const noDataRow = document.createElement('tr');
+                noDataRow.innerHTML = '<td colspan="3" class="text-center">没有学生</td>';
+                studentList.appendChild(noDataRow);
+            }
+        })
+        .catch(error => {
+            alert(error);
+        });
+    });
     // 处理成功响应
     function handleResponse(data, submitButton, modalId) {
         const messageBox = $('#messageBox');

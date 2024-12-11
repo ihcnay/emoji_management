@@ -5,6 +5,9 @@ from django.contrib import auth, messages
 from myapp.models import *
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_POST
+import json
 
 
 def user_login(request):
@@ -168,19 +171,6 @@ def error_page(request):
     pass
 
 
-def user_class(request, classid):
-    try:
-        # 获取课程对象
-        course = Class.objects.get(classid=classid)
-
-        # 处理课程详情页面渲染
-        return render(request, 'course_detail.html', {'course': course})
-
-    except Class.DoesNotExist:
-        # 如果课程不存在，返回错误页面或其他处理方式
-        return render(request, 'error.html', {'error': '课程未找到！'})
-
-
 @csrf_exempt
 @login_required
 def add_course_ajax(request):
@@ -213,17 +203,19 @@ def add_course_ajax(request):
 
 @login_required
 def course_detail(request, classid):
-    course = Course.objects.get(classid=classid)
-    total_students = course.students.count()  # 获取学生人数
-    emojis = Emoji.objects.all()  # 获取所有表情
-    msgs= Message.objects.filter(course=course)  # 获取该课程的消息
-
-    return render(request, 'course_detail.html', {
-        'course': course,
-        'total_students': total_students,
-        'emojis': emojis,
-        'messages': msgs,
-    })
+    try:
+        course = Class.objects.get(classid=classid)
+        total_students = course.students.count()  # 获取学生人数
+        emojis = EMOJI.objects.all()  # 获取所有表情
+        msgs= EMOJI_MESSAGE.objects.filter(classid=course)  # 获取该课程的消息
+        return render(request, 'course_detail.html', {
+            'course': course,
+            'total_students': total_students,
+            'emojis': emojis,
+            'messages': msgs,
+        })
+    except Class.DoesNotExist:
+        return redirect('error_page')  # 替换为你实际的错误页面路由，或者主页路由
 
 
 @login_required
@@ -316,8 +308,51 @@ def add_student(request):
     return JsonResponse({'success': False, 'error': '无效请求！'})
 
 
-def del_stu(request):  ##教师/管理员将某学生从课程中移除
-    pass
+@login_required
+@require_GET
+def get_students_in_course(request):
+    classid = request.GET.get('classid')
+    if not classid:
+        return JsonResponse({'error': '课程ID缺失'}, status=400)
+
+    try:
+        course = Class.objects.get(classid=classid)
+        students = course.students.all()
+        student_list = [{'id': student.id, 'name': student.get_full_name()} for student in students]
+        return JsonResponse({'students': student_list}, status=200)
+    except Class.DoesNotExist:
+        return JsonResponse({'error': '课程不存在'}, status=404)
+
+
+@csrf_exempt
+@require_POST
+def remove_student_from_course(request):
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': '无效的 JSON 格式'}, status=400)
+
+    classid = data.get('classid')
+    studentid = data.get('studentid')
+    print("OK")
+    if not classid or not studentid:
+        return JsonResponse({'error': '课程ID或学生ID缺失'}, status=400)
+
+    try:
+        course = Class.objects.get(classid=classid)
+    except Class.DoesNotExist:
+        return JsonResponse({'error': '课程不存在'}, status=404)
+
+    try:
+        student = User.objects.get(id=studentid)
+    except User.DoesNotExist:
+        return JsonResponse({'error': '学生不存在'}, status=404)
+
+    try:
+        course.students.remove(student)
+        return JsonResponse({'success': True}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 def view_all(request):  ##教师查看某课程的统计信息

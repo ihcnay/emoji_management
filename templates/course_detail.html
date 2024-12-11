@@ -3,8 +3,35 @@
 <head>
     <title>{{ course.classname }}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        /* 设置过往消息的容器样式 */
+        #messages-container {
+            min-height: 200px;
+            max-height: 300px;  /* 固定最大高度 */
+            overflow-y: auto;   /* 如果内容超过高度，启用垂直滚动 */
+            border: 1px solid #ddd; /* 添加边框 */
+            padding: 10px;  /* 内边距 */
+            background-color: #f9f9f9;  /* 背景色 */
+        }
+
+        .message-item {
+            margin-bottom: 15px;  /* 每条消息之间的间距 */
+        }
+
+        .no-messages {
+            text-align: center;
+            color: #888;
+            font-style: italic;
+        }
+
+        .emoji-img {
+            width: 30px; /* 设置图片大小 */
+            height: 30px;
+        }
+    </style>
 </head>
 <body>
+{% load static %}  <!-- 加载 static 标签库 -->
     <div class="container mt-5">
         <h1>{{ course.classname }} 课程详情</h1>
         <table class="table table-bordered">
@@ -28,36 +55,79 @@
 
         <h3>过往消息</h3>
         <div id="messages-container">
-            {% for message in messages %}
-                <div class="message-item">
-                    <p><strong>{{ message.sender.username }}</strong> 发送于 {{ message.time|date:"Y-m-d H:i" }}</p>
-                    <p>{{ message.emoji_id.emoji_name }}</p>  <!-- Display emoji name (or emoji image if you prefer) -->
-                    <hr>
-                </div>
-            {% endfor %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="message-item">
+                        <p><strong>{{ message.sender.username }}</strong> 发送于 {{ message.time|date:"Y-m-d H:i" }}</p>
+
+                        <!-- 显示表情 -->
+                        <p>
+                            {% if message.emoji_id %}
+                                <img src="{% static 'emoji/'|add:message.emoji_id.U_code|add:'.png' %}" class="emoji-img" alt="{{ message.emoji_id.description }}" style="width: 30px; height: 30px;">
+                                {{ message.emoji_id.emoji_name }} - {{ message.emoji_id.description }}
+                            {% else %}
+                                无表情
+                            {% endif %}
+                        </p>
+
+                        <hr>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="no-messages">暂无历史消息</p>
+            {% endif %}
         </div>
 
         <h4>发送新消息</h4>
-        <form id="sendMessageForm">
-            {% csrf_token %}
-            <div class="mb-3">
-                <label for="emojiSelect" class="form-label">选择一个 Emoji</label>
-                <select class="form-control" id="emojiSelect" name="emoji_id" required>
-                    {% for emoji in emojis %}
-                        <option value="{{ emoji.id }}">{{ emoji.emoji_name }}</option>  <!-- Display emoji names -->
-                    {% endfor %}
-                </select>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#emojiModal">选择表情</button>
+
+    <!-- Modal -->
+    <div class="modal fade" id="emojiModal" tabindex="-1" aria-labelledby="emojiModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="emojiModalLabel">选择一个 Emoji</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="emojiSelectForm">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="emojiSelect" class="form-label">选择表情</label>
+                            <div class="emoji-list">
+                                 {% if emojis %}
+                                    {% for emoji in emojis %}
+                                        <div class="emoji-item" style="display: flex; align-items: center; margin-bottom: 10px;">
+                                            <img src="{% static 'emoji/'|add:emoji.U_code|add:'.png' %}" class="emoji-img" alt="{{ emoji.description }}" style="width: 40px; height: 40px; margin-right: 10px;">
+                                            <p>{{ emoji.emoji_name }} - {{ emoji.description }}</p>
+                                            <input type="radio" name="emoji_id" value="{{ emoji.id }}" required>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="no-emojis" style="text-align: center; color: #888; font-style: italic;">暂无可选表情</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3">发送表情</button>
+                    </form>
+                </div>
             </div>
-            <button type="submit" class="btn btn-primary">发送表情</button>
-        </form>
-        <a href="{% url 'user_home' %}" class="btn btn-secondary mt-3">返回主页</a>
+        </div>
+    </div>
+
+        <!-- 水平排列按钮 -->
+        <div class="row mt-3">
+            <div class="col">
+                <a href="{% url 'user_home' %}" class="btn btn-secondary">返回主页</a>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script>
         // 发送新消息的 AJAX 请求
-        $('#sendMessageForm').submit(function (e) {
+        $('#emojiSelectForm').submit(function (e) {
             e.preventDefault();
             $.ajax({
                 url: "{% url 'send_message_ajax' course.classid %}",  // 动态生成课程ID
@@ -71,6 +141,9 @@
                     alert('发送消息失败：' + xhr.responseJSON.error);
                 }
             });
+
+            // 关闭 modal
+            $('#emojiModal').modal('hide');
         });
     </script>
 </body>

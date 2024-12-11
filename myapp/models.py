@@ -47,7 +47,10 @@ class EMOJI_MESSAGE(models.Model):
     classid = models.ForeignKey('Class', on_delete=models.CASCADE)
 
 
-
 class EMOJI(models.Model):
     id = models.AutoField(primary_key=True)  # 递增的计数器
-    U_code = models.CharField(max_length=10, unique=True)
+    U_code = models.CharField(max_length=10, unique=True)  # Emoji 的编码
+    description = models.CharField(max_length=255, null=True, blank=True)  # 添加描述字段
+
+    def __str__(self):
+        return self.U_code  # 可选，返回 U_code 作为字符串表示
