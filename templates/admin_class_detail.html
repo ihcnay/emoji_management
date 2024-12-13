@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <title>{{ course.classname }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .container {
+            width: 80%;
+            margin: auto;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        #messages-container {
+            min-height: 200px;
+            max-height: 300px; /* 固定最大高度 */
+            overflow-y: auto; /* 如果内容超过高度，启用垂直滚动 */
+            border: 1px solid #ddd; /* 添加边框 */
+            padding: 10px; /* 内边距 */
+            background-color: #f9f9f9; /* 背景色 */
+        }
+
+        .message-item {
+            margin-bottom: 15px; /* 每条消息之间的间距 */
+        }
+
+        .no-messages {
+            text-align: center;
+            color: #888;
+            font-style: italic;
+        }
+
+        .emoji-img {
+            width: 30px; /* 设置图片大小 */
+            height: 30px;
+        }
+    </style>
+</head>
+<body>
+{% load static %}
+    <div class="container mt-5">
+        <h1>{{ course.classname }} 课程详情</h1>
+        <table class="table table-bordered">
+            <tr>
+                <th>课程ID</th>
+                <td>{{ course.classid }}</td>
+            </tr>
+            <tr>
+                <th>课程名称</th>
+                <td>{{ course.classname }}</td>
+            </tr>
+            <tr>
+                <th>教师ID</th>
+                <td>{{ course.teacher.username }}</td>
+            </tr>
+            <tr>
+                <th>学生人数</th>
+                <td>{{ total_students|default:"0" }}</td>
+            </tr>
+        </table>
+        <div class="d-flex gap-2">
+            <!-- 使用AJAX提交表单 -->
+            <form id="remove-course-form" method="POST">
+                {% csrf_token %}
+                <button class="btn btn-danger" id="remove-course-btn">移除课程</button>
+            </form>
+            <a href="{% url 'admin_home' %}" class="btn btn-secondary">返回课程列表</a>
+        </div>
+    </div>
+    <div class="container mt-5">
+        <h3>学生信息</h3>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>用户名</th>
+                    <th>邮箱</th>
+                    <th>可选操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in student_info %}
+                    <tr>
+                        <td>{{ student.username }}</td>
+                        <td>{{ student.email }}</td>
+                        <td>
+                            <!-- "从课程移除"按钮 -->
+                            <button class="btn btn-danger btn-sm" onclick="removeStudent('{{ course.classid }}', '{{ student.id }}')">
+                                从课程移除
+                            </button>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script>
+    // 绑定删除课程按钮的点击事件
+    document.getElementById("remove-course-btn").addEventListener("click", function(event) {
+        event.preventDefault();
+
+        // 发送 AJAX 请求
+        fetch("{% url 'remove_course' course.classid %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",  // 使用 json 格式
+                "X-CSRFToken": "{{ csrf_token }}"   // 传递 CSRF Token
+            },
+            body: JSON.stringify({
+                classid: "{{ course.classid }}"  // 传递 classid
+            })
+        })
+        .then(response => response.json())  // 解析响应为 JSON
+        .then(data => {
+            if (data.success) {
+                // 显示成功信息
+                alert("课程已成功移除，请等待跳转");
+                // 5秒后跳转到课程列表
+                setTimeout(function() {
+                    window.location.href = "{% url 'admin_home' %}";
+                }, 2000);
+            } else if (data.error) {
+                // 显示错误信息
+                alert("无法移除课程，课程中有学生或消息。");
+            }
+        })
+        .catch(error => {
+            console.error("请求失败:", error);
+            alert("请求失败，请重试！");
+        });
+    });
+    </script>
+    <div class="container mt-5">
+        <h3>过往消息</h3>
+        <div id="messages-container">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="message-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <p><strong>{{ message.sender.username }}</strong> 发送于 {{ message.time|date:"Y-m-d H:i" }}</p>
+                        <p>
+                            {% if message.emoji_id %}
+                            <img src="{% static 'emoji/'|add:message.emoji_id.U_code|add:'.png' %}" class="emoji-img" alt="{{ message.emoji_id.description }}" style="width: 30px; height: 30px;">
+                            {{ message.emoji_id.emoji_name }} - {{ message.emoji_id.description }}
+                            {% else %}
+                            无表情
+                            {% endif %}
+                        </p>
+                        </div>
+                        <div>
+                            <!-- 撤回按钮 -->
+                            <button class="btn btn-danger btn-sm" onclick="deleteMessage('{{ message.id }}')">撤回</button>
+                        </div>
+                    </div>
+                <hr>
+                {% endfor %}
+            {% else %}
+                <p class="no-messages">暂无历史消息</p>
+            {% endif %}
+        </div>
+
+        <!-- 按钮 -->
+        <div class="row mt-3">
+            <div class="d-flex gap-2">
+                <!-- 查看统计数据按钮 -->
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#statisticsModal">查看课程统计数据</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // 该脚本将在页面加载完成后，将 #messages-container 滚动到最底部
+        document.addEventListener("DOMContentLoaded", function() {
+            var messagesContainer = document.getElementById("messages-container");
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        });
+    </script>
+    <script>
+        function removeStudent(classid, studentid) {
+            // 创建请求体
+            const data = {
+                classid: classid,
+                studentid: studentid
+            };
+
+            // 发送 AJAX 请求
+            fetch("{% url 'remove_student_from_course' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert("学生已成功从课程中移除");
+                    // 刷新页面或删除该行
+                    location.reload(); // 刷新页面
+                } else {
+                    alert("错误: " + (data.error || '未知错误'));
+                }
+            })
+            .catch(error => {
+                alert("请求失败: " + error.message);
+            });
+        }
+    </script>
+    <script>
+        // 删除消息的 AJAX 请求函数
+        function deleteMessage(messageId) {
+            // 使用 Fetch API 发送 AJAX 请求
+            fetch("{% url 'delete_message' 0 %}".replace('0', messageId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ 'message_id': messageId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 删除成功后显示提示信息
+                    alert("消息删除成功！");
+                    disablePageInteractions();
+                    // 等待 2 秒后刷新页面
+                    setTimeout(function() {
+                        location.reload(); // 刷新页面
+                    }, 2000); // 延迟 2 秒
+                } else {
+                    alert("删除失败：" + (data.error || "未知错误"));
+                }
+            })
+            .catch(error => {
+                alert("请求失败：" + error.message);
+            });
+        }
+
+        // 禁用页面所有交互
+        function disablePageInteractions() {
+            // 禁用所有按钮和表单元素
+            $('button, input, select, textarea, a').prop('disabled', true);
+
+            // 设置 pointer-events 为 none 来禁用页面交互
+            $('body').css('pointer-events', 'none');
+        }
+    </script>
+    <!-- 模态框：统计数据 -->
+    <div class="modal fade" id="statisticsModal" tabindex="-1" aria-labelledby="statisticsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statisticsModalLabel">课程消息统计数据</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {% if emoji_statistics.total_count > 0 %}
+                        <h6>总发送表情数: {{ emoji_statistics.total_count }}</h6>
+                        <h6>发送最多的前 5 种表情:</h6>
+                        <ul>
+                            {% for emoji_stat in emoji_statistics.top_emojis %}
+                            <li style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <img src="{% static 'emoji/'|add:emoji_stat.emoji_id__U_code|add:'.png' %}" class="emoji-img" alt="{{ emoji_stat.emoji_id__description }}" style="margin-right: 10px;">
+                                {{ emoji_stat.emoji_id__description }} ({{ emoji_stat.count }} 次)
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="no-messages">暂无学生发送消息</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

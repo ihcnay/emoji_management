@@ -2,28 +2,305 @@
 <html>
 <head>
     <title>管理员主页</title>
+    <style>
+        .container {
+            width: 80%;
+            margin: auto;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .pagination {
+            margin-top: 10px;
+            text-align: center;
+        }
+        .pagination a {
+            margin: 0 5px;
+            text-decoration: none;
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            color: #000;
+        }
+        .pagination a:hover {
+            background-color: #ddd;
+        }
+    </style>
 </head>
 <body>
-    <h1>欢迎管理员 {{ user.username }}</h1>
-    <h2>课程统计信息</h2>
-    <p>总课程数: {{ total_classes }}</p>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>课程名称</th>
-                <th>教师</th>
-                <th>学生人数</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for stat in class_stats %}
+    <div class="container">
+        <h2>课程统计信息</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <p>总课程数: {{ total_classes }}</p>
+            <button id="manageClassButton" style="padding: 8px 16px;">管理课程</button>
+        </div>
+
+        <table>
+            <thead>
                 <tr>
+                    <th>课程 ID</th>
+                    <th>课程名称</th>
+                    <th>教师</th>
+                    <th>学生人数</th>
+                    <th>EMOJI消息数</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in page_obj_classes.object_list %}
+                <tr>
+                    <td>{{ stat.classid }}</td>
                     <td>{{ stat.class.classname }}</td>
                     <td>{{ stat.class.teacher.username }}</td>
                     <td>{{ stat.student_count }}</td>
+                    <td>{{ stat.message_count }}</td>
                 </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="pagination">
+            {% if page_obj_classes.has_previous %}
+            <a href="?class_page={{ page_obj_classes.previous_page_number }}&user_page={{ page_obj_users.number }}">上一页</a>
+            {% endif %}
+            <span>第 {{ page_obj_classes.number }} 页 / 共 {{ page_obj_classes.paginator.num_pages }} 页</span>
+            {% if page_obj_classes.has_next %}
+            <a href="?class_page={{ page_obj_classes.next_page_number }}&user_page={{ page_obj_users.number }}">下一页</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>账户统计信息</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <p>总用户数: {{ total_users }}</p>
+            <button id="manageUserButton" style="padding: 8px 16px;">管理用户</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>用户名</th>
+                    <th>电子邮件</th>
+                    <th>账户身份</th>
+                    <th>最后登录时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user_stat in page_obj_users.object_list %}
+                <tr>
+                    <td>{{ user_stat.user.username }}</td>
+                    <td>{{ user_stat.user.email }}</td>
+                    <td>
+                        {% if user_stat.capacity == 1 %}
+                            学生
+                        {% elif user_stat.capacity == 2 %}
+                            教师
+                        {% elif user_stat.capacity == 3 %}
+                            管理员
+                        {% else %}
+                            未知
+                        {% endif %}
+                    </td>
+                    <td>{{ user_stat.user.last_login }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="pagination">
+            {% if page_obj_users.has_previous %}
+            <a href="?user_page={{ page_obj_users.previous_page_number }}&class_page={{ page_obj_classes.number }}">上一页</a>
+            {% endif %}
+            <span>第 {{ page_obj_users.number }} 页 / 共 {{ page_obj_users.paginator.num_pages }} 页</span>
+            {% if page_obj_users.has_next %}
+            <a href="?user_page={{ page_obj_users.next_page_number }}&class_page={{ page_obj_classes.number }}">下一页</a>
+            {% endif %}
+        </div>
+    </div>
+    {% load static %}
+    <div class="container">
+    <h2>系统表情信息</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <p>总支持emoji数: {{ total_emoji }}</p>
+        <button id="manageEmojiButton" style="padding: 8px 16px;">管理 Emoji</button>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Emoji 图片</th>
+                <th>Emoji 编码</th>
+                <th>描述</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for emoji in emoji_list %}
+            <tr>
+                <td>
+                    <img src="{% static 'emoji/' %}{{ emoji.U_code }}.png" alt="{{ emoji.U_code }}" style="width: 32px; height: 32px;">
+                </td>
+                <td>{{ emoji.U_code }}</td>
+                <td>{{ emoji.description }}</td>
+            </tr>
             {% endfor %}
         </tbody>
     </table>
+</div>
+
+<!-- Modal Structure -->
+<div id="emojiModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border: 1px solid #ccc; border-radius: 8px; padding: 16px; z-index: 1000; width: 300px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);">
+    <h3>管理 Emoji</h3>
+    <form id="emojiForm">
+        {% csrf_token %}
+        <div style="margin-bottom: 12px;">
+            <label for="emojiCode">Emoji 编码:</label>
+            <input type="text" id="emojiCode" name="emojiCode" style="width: 100%;">
+        </div>
+        <div style="margin-bottom: 12px;">
+            <label for="emojiDesc">描述:</label>
+            <input type="text" id="emojiDesc" name="emojiDesc" style="width: 100%;">
+        </div>
+        <div style="text-align: right;">
+            <button type="button" id="cancelButton" style="margin-right: 8px;">取消</button>
+            <button type="submit">保存</button>
+        </div>
+    </form>
+</div>
+<!-- 输入框模态 -->
+<div id="classModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
+    <div style="background: white; padding: 20px; border-radius: 8px; text-align: center;">
+        <h3>请输入课程 ID</h3>
+        <input type="text" id="classIdInput" placeholder="课程 ID" style="padding: 8px; width: 80%; margin-bottom: 16px;" />
+        <br>
+        <button id="submitClassId" style="padding: 8px 16px; margin-right: 8px;">提交</button>
+        <button id="closeModal" style="padding: 8px 16px;">取消</button>
+    </div>
+</div>
+
+<script>
+    // 显示模态框
+    document.getElementById('manageClassButton').addEventListener('click', () => {
+        document.getElementById('classModal').style.display = 'flex';
+    });
+
+    // 关闭模态框
+    document.getElementById('closeModal').addEventListener('click', () => {
+        document.getElementById('classModal').style.display = 'none';
+    });
+
+    // 提交 classid
+    document.getElementById('submitClassId').addEventListener('click', () => {
+        const classid = document.getElementById('classIdInput').value.trim();
+        if (classid) {
+            // 使用 fetch 检查课程 ID 是否存在
+            fetch(`/admin_class_detail/${classid}/`, {
+                method: 'GET',
+            })
+            .then(response => {
+                if (response.ok) {
+                    // 如果课程存在，跳转到课程详情页面
+                    window.location.href = `/admin_class_detail/${classid}/`;
+                } else if (response.status === 404) {
+                    // 如果课程不存在，动态显示错误消息
+                    displayErrorMessage('课程 ID 不存在，请重新输入！');
+                } else {
+                    // 处理其他错误
+                    displayErrorMessage('发生未知错误，请稍后重试！');
+                }
+            })
+            .catch(error => {
+                console.error('请求失败:', error);
+                displayErrorMessage('无法连接到服务器，请检查网络或稍后重试！');
+            });
+        } else {
+            alert('请输入有效的课程 ID');
+        }
+    });
+
+    // 动态显示错误消息
+    function displayErrorMessage(message) {
+        const errorContainer = document.getElementById('errorContainer');
+        if (errorContainer) {
+            errorContainer.innerHTML = `<div class="alert alert-danger" role="alert">${message}</div>`;
+        } else {
+            alert(message); // 如果没有错误容器，使用 alert 作为后备
+        }
+    }
+
+</script>
+<!-- Overlay -->
+<div id="modalOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 999;"></div>
+
+<script>
+    document.getElementById('manageEmojiButton').addEventListener('click', () => {
+        document.getElementById('emojiModal').style.display = 'block';
+        document.getElementById('modalOverlay').style.display = 'block';
+    });
+
+    document.getElementById('cancelButton').addEventListener('click', () => {
+        document.getElementById('emojiModal').style.display = 'none';
+        document.getElementById('modalOverlay').style.display = 'none';
+    });
+
+    document.getElementById('modalOverlay').addEventListener('click', () => {
+        document.getElementById('emojiModal').style.display = 'none';
+        document.getElementById('modalOverlay').style.display = 'none';
+    });
+
+    document.getElementById('emojiForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const emojiCode = document.getElementById('emojiCode').value.trim();
+        const emojiDesc = document.getElementById('emojiDesc').value.trim();
+
+        if (!emojiCode) {
+            alert("Emoji 编码不能为空！");
+            return;
+        }
+        if (!emojiDesc) {
+            alert("描述不能为空！");
+            return;
+        }
+        fetch('/manage-emoji/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: new URLSearchParams({
+                emojiCode: emojiCode,
+                emojiDesc: emojiDesc
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();  // 刷新页面以更新表格
+            } else {
+                alert("保存失败：" + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("图片文件未放在指定文件夹下！");
+        });
+
+        document.getElementById('emojiModal').style.display = 'none';
+        document.getElementById('modalOverlay').style.display = 'none';
+    });
+</script>
+
 </body>
 </html>

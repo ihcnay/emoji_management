@@ -7,9 +7,11 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
 from django.views.decorators.http import require_POST
-import json
-from django.shortcuts import render, HttpResponseRedirect
+import json,os
+from django.shortcuts import render, HttpResponseRedirect,get_object_or_404
 from django.db.models import Count
+from django.core.paginator import Paginator
+from django.conf import settings
 
 
 def user_login(request):
@@ -144,38 +146,89 @@ def user_home(request):
 
 @login_required
 def admin_home(request):
-    # 检查用户是否为管理员
+    # 检查用户权限
     user = request.user
     try:
         user_capacity = USER_TO_CAPACITY.objects.get(username=user).capacity
     except USER_TO_CAPACITY.DoesNotExist:
         return render(request, 'error_page.html', {'error_message': "用户未绑定身份。"})
 
-    if user_capacity != 3:  # 如果不是管理员，跳转到错误页面
+    if user_capacity != 3:
         return render(request, 'error_page.html', {'error_message': "无权限访问该页面。"})
 
-    # 查询所有课程信息
+    # 查询课程和学生统计信息
     all_classes = Class.objects.all()
-
-    # 统计课程总数和学生人数等信息（可选）
-    class_stats = []
-    for cls in all_classes:
-        student_count = cls.students.count()  # Class 模型有一个 ManyToManyField 关联到学生
-        class_stats.append({
+    class_stats = [
+        {
             'class': cls,
-            'student_count': student_count,
-        })
+            'classid': cls.classid,
+            'student_count': cls.students.count(),
+            'message_count': EMOJI_MESSAGE.objects.filter(classid=cls).count(),  # 获取消息数
+        }
+        for cls in all_classes
+    ]
 
-    # 将所有课程信息传递到模板
+    # 分页处理课程信息
+    paginator_classes = Paginator(class_stats, 10)  # 每页10条
+    page_number_classes = request.GET.get('class_page', 1)
+    page_obj_classes = paginator_classes.get_page(page_number_classes)
+
+    # 用户统计信息
+    total_users = User.objects.count()
+    users_sorted_by_login = User.objects.order_by('-last_login')
+    user_stats = [
+        {
+            'user': user,
+            'capacity': USER_TO_CAPACITY.objects.get(username=user).capacity
+        }
+        for user in users_sorted_by_login
+    ]
+    paginator_users = Paginator(user_stats, 10)  # 每页10条
+    page_number_users = request.GET.get('user_page', 1)
+    page_obj_users = paginator_users.get_page(page_number_users)
+
+    # 获取表情信息
+    total_emoji = EMOJI.objects.count()
+    emoji_list = EMOJI.objects.all()
+
+    # 渲染模板
     return render(request, 'admin_home.html', {
-        'all_classes': all_classes,
-        'class_stats': class_stats,
+        'page_obj_classes': page_obj_classes,  # 课程分页对象
         'total_classes': all_classes.count(),
+        'page_obj_users': page_obj_users,      # 用户分页对象
+        'total_users': total_users,
+        'emoji_list': emoji_list,             # 表情列表
+        'total_emoji':total_emoji,
     })
 
 
+def manage_emoji(request):
+    if request.method == "POST":
+        U_code = request.POST.get("emojiCode").strip()
+        description = request.POST.get("emojiDesc").strip()
+
+        # 确保图片文件存在
+        static_root = settings.STATIC_ROOT or settings.STATICFILES_DIRS[0]  # 兼容开发环境
+        image_path = os.path.join(static_root, f"emoji/{U_code}.png")
+        if not os.path.exists(image_path):
+            return JsonResponse({"success": False, "message": "对应的图片文件不存在，请确保文件已上传。"})
+
+        # 创建或更新 Emoji 对象
+        emoji, created = EMOJI.objects.get_or_create(U_code=U_code)
+        emoji.description = description
+        emoji.save()
+
+        return JsonResponse({
+            "success": True,
+            "message": "Emoji 已成功保存。",
+            "created": created  # True 如果新建，False 如果更新
+        })
+
+    return JsonResponse({"success": False, "message": "仅支持 POST 请求。"})
+
+
 def error_page(request):
-    pass
+    return render(request, 'error_page.html')
 
 
 @csrf_exempt
@@ -291,12 +344,57 @@ def send_message_ajax(request, classid):
     return JsonResponse({'error': '无效的请求方式！'}, status=405)
 
 
-def send_emoji(request):  ##学生点击发送表情后触发
-    pass
+@login_required
+def admin_class_detail(request, classid):
+    # 检查用户权限
+    user = request.user
+    try:
+        user_capacity = USER_TO_CAPACITY.objects.get(username=user).capacity
+    except USER_TO_CAPACITY.DoesNotExist:
+        return render(request, 'error_page.html', {'error_message': "用户未绑定身份。"})
 
+    if user_capacity != 3:  # 3 表示管理员权限
+        return render(request, 'error_page.html', {'error_message': "无权限访问该页面。"})
 
-def emoji_history(request):  ##学生点击查询课程历史表情后触发
-    pass
+    # 获取课程信息
+    try:
+        course = Class.objects.get(classid=classid)
+    except Class.DoesNotExist:
+        return JsonResponse({"message": "课程不存在"}, status=404)
+
+    students = course.students.all()
+    student_info = []
+    for student in students:
+        student_info.append({
+            'id':student.id,
+            'username': student.username,
+            'email': student.email,
+        })
+    # 统计学生数量
+    total_students = course.students.count()
+
+    # 获取过往消息
+    messages = EMOJI_MESSAGE.objects.filter(classid=course).select_related('sender', 'emoji_id')
+
+    # 表情统计
+    emoji_statistics = EMOJI_MESSAGE.objects.filter(classid=course).values(
+        'emoji_id__U_code', 'emoji_id__description'
+    ).annotate(count=Count('emoji_id')).order_by('-count')[:5]
+
+    # 总表情数
+    total_emoji_count = EMOJI_MESSAGE.objects.filter(classid=course).count()
+
+    context = {
+        'course': course,
+        'student_info': student_info,
+        'total_students': total_students,
+        'messages': messages,
+        'emoji_statistics': {
+            'total_count': total_emoji_count,
+            'top_emojis': emoji_statistics,
+        },
+    }
+    return render(request, 'admin_class_detail.html', context)
 
 
 @csrf_exempt
@@ -388,39 +486,38 @@ def remove_student_from_course(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-def view_all(request):  ##教师查看某课程的统计信息
-    pass
+def remove_course(request, classid):
+    # 确保请求方法为 POST
+    if request.method == 'POST':
+        # 获取课程对象
+        course = get_object_or_404(Class, classid=classid)
+
+        # 检查课程是否有学生或消息
+        if course.students.exists() or EMOJI_MESSAGE.objects.filter(classid=course).exists():
+            # 返回错误信息，不刷新页面
+            return JsonResponse({'error': '无法移除课程，课程中有学生或消息。'}, status=400)
+
+        # 如果没有学生和消息，删除课程
+        course.delete()
+
+        # 返回成功信息
+        return JsonResponse({'success': True})
+
+    return JsonResponse({'error': '无效的请求方法'}, status=405)
 
 
-def export_to_xxx(request):  ##课程信息导出
-    pass
+def delete_message(request, message_id):
+    if request.method == "POST":
+        # 获取要删除的消息
+        message = get_object_or_404(EMOJI_MESSAGE, id=message_id)
 
+        # 删除消息
+        message.delete()
 
-def adm_user(request):  ##管理员查看用户数据的统计
-    pass
+        # 返回 JSON 响应
+        return JsonResponse({'success': True})
 
-
-def adm_add_user(request):  ##管理员可增加用户
-    pass
-
-
-def adm_del_user(request):  ##管理员可删除用户
-    pass
-
-
-def adm_class(request):  ##管理员点击某课程
-    pass
-
-
-def adm_del_msg(request):  # 管理员有权限删除消息
-    pass
-
-
-def adm_add_class(request):  # 管理员有权限增删课程
-    pass
-
-
-def adm_del_class(request):
-    pass
+    # 如果请求方法不是 POST，返回失败
+    return JsonResponse({'error': '请求方法错误'}, status=400)
 
 # emoji管理暂定

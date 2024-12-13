@@ -14,4 +14,8 @@ urlpatterns = [
     path('add_student/', views.add_student, name='add_student'),
     path('api/get_students_in_course/', views.get_students_in_course, name='get_students_in_course'),
     path('api/remove_student_from_course/', views.remove_student_from_course, name='remove_student_from_course'),
+    path('manage-emoji/', views.manage_emoji, name='manage_emoji'),
+    path('remove_course/<str:classid>/', views.remove_course, name='remove_course'),
+    path('admin_class_detail/<str:classid>/', views.admin_class_detail, name='admin_class_detail'),
+    path('delete_message/<int:message_id>/', views.delete_message, name='delete_message'),
 ]

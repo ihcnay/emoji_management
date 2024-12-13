@@ -77,6 +77,13 @@
                 <p class="no-messages">暂无历史消息</p>
             {% endif %}
         </div>
+        <script>
+            // 该脚本将在页面加载完成后，将 #messages-container 滚动到最底部
+            document.addEventListener("DOMContentLoaded", function() {
+                var messagesContainer = document.getElementById("messages-container");
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            });
+        </script>
 
         <h4>发送新消息(仅学生可用)</h4>
         <!-- 只有当用户不是教师时才显示发送按钮 -->
@@ -128,6 +135,7 @@
             </div>
         </div>
     </div>
+
 
     <!-- 模态框：统计数据 -->
     <div class="modal fade" id="statisticsModal" tabindex="-1" aria-labelledby="statisticsModalLabel" aria-hidden="true">
