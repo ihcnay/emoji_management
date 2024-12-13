@@ -245,9 +245,9 @@ def add_course_ajax(request):
         try:
             user_capacity = USER_TO_CAPACITY.objects.get(username=user).capacity
             if user_capacity != 2:
-                return JsonResponse({'error': "您无权添加课程。"}, status=403)
+                return JsonResponse({'success': False, 'error': "您无权添加课程。"}, status=403)
         except USER_TO_CAPACITY.DoesNotExist:
-            return JsonResponse({'error': "用户未绑定身份。"}, status=400)
+            return JsonResponse({'success': False, 'error': "用户未绑定身份。"}, status=400)
 
         # 创建新课程
         classid = request.POST.get('classid')
@@ -255,14 +255,15 @@ def add_course_ajax(request):
 
         # 验证课程ID唯一性
         if Class.objects.filter(classid=classid).exists():
-            return JsonResponse({'error': "课程ID已存在。"}, status=400)
+            return JsonResponse({'success': False, 'error': "课程ID已存在。"}, status=400)
 
         # 创建课程
         new_course = Class.objects.create(classid=classid, classname=classname, teacher=user)
         new_course.save()
-        return JsonResponse({'message': "课程添加成功！"})
 
-    return JsonResponse({'error': "无效的请求方法。"}, status=405)
+        return JsonResponse({'success': True, 'message': "课程添加成功！"})
+
+    return JsonResponse({'success': False, 'error': "无效的请求方法。"}, status=405)
 
 
 @login_required
@@ -453,10 +454,25 @@ def get_students_in_course(request):
     try:
         course = Class.objects.get(classid=classid)
         students = course.students.all()
-        student_list = [{'id': student.id, 'name': student.get_full_name()} for student in students]
+
+        # 获取学生的名称，假设学生是通过 USER_TO_CAPACITY 表与 User 模型关联的
+        student_list = []
+        for student in students:
+            # 获取该学生在 USER_TO_CAPACITY 表中的对应记录
+            user_capacity = USER_TO_CAPACITY.objects.get(username=student)
+            student_list.append({
+                'id': student.username,
+                'name': user_capacity.name  # 从 USER_TO_CAPACITY 表中获取学生名称
+            })
+
         return JsonResponse({'students': student_list}, status=200)
+
     except Class.DoesNotExist:
         return JsonResponse({'error': '课程不存在'}, status=404)
+    except USER_TO_CAPACITY.DoesNotExist:
+        return JsonResponse({'error': '用户身份未绑定'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 @csrf_exempt
@@ -479,7 +495,7 @@ def remove_student_from_course(request):
         return JsonResponse({'error': '课程不存在'}, status=404)
 
     try:
-        student = User.objects.get(id=studentid)
+        student = User.objects.get(username=studentid)
     except User.DoesNotExist:
         return JsonResponse({'error': '学生不存在'}, status=404)
 
