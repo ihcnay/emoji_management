@@ -190,14 +190,17 @@ def admin_home(request):
     # 获取表情信息
     total_emoji = EMOJI.objects.count()
     emoji_list = EMOJI.objects.all()
+    paginator_emoji = Paginator(emoji_list, 10)  # 每页显示10个表情
 
+    emoji_page_number = request.GET.get('emoji_page', 1)  # 获取 emoji 当前页
+    page_obj_emoji = paginator_emoji.get_page(emoji_page_number)
     # 渲染模板
     return render(request, 'admin_home.html', {
         'page_obj_classes': page_obj_classes,  # 课程分页对象
         'total_classes': all_classes.count(),
         'page_obj_users': page_obj_users,      # 用户分页对象
         'total_users': total_users,
-        'emoji_list': emoji_list,             # 表情列表
+        'page_obj_emoji': page_obj_emoji,      # 表情分页对象
         'total_emoji':total_emoji,
     })
 

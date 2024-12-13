@@ -146,7 +146,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for emoji in emoji_list %}
+            {% for emoji in page_obj_emoji.object_list %}
             <tr>
                 <td>
                     <img src="{% static 'emoji/' %}{{ emoji.U_code }}.png" alt="{{ emoji.U_code }}" style="width: 32px; height: 32px;">
@@ -157,6 +157,15 @@
             {% endfor %}
         </tbody>
     </table>
+    <div class="pagination">
+        {% if page_obj_emoji.has_previous %}
+        <a href="?emoji_page={{ page_obj_emoji.previous_page_number }}">上一页</a>
+        {% endif %}
+        <span>第 {{ page_obj_emoji.number }} 页 / 共 {{ page_obj_emoji.paginator.num_pages }} 页</span>
+        {% if page_obj_emoji.has_next %}
+        <a href="?emoji_page={{ page_obj_emoji.next_page_number }}">下一页</a>
+        {% endif %}
+    </div>
 </div>
 
 <!-- Modal Structure -->
