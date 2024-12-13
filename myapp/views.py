@@ -42,6 +42,7 @@ def register(request):
         try:
             username = request.POST.get('username')
             password = request.POST.get('password')
+            name = request.POST.get('real_name', None)  # 获取真实姓名
             email = request.POST.get('email')
             user_role = request.POST['user_role']
             admin_sequence = request.POST.get('admin_sequence', None)  # 获取管理员序列号，默认为 None
@@ -74,7 +75,7 @@ def register(request):
                 return render(request, 'register.html')
             # 创建用户
             user = User.objects.create_user(username=username, password=password, email=email)
-            USER_TO_CAPACITY.objects.create(username=user, capacity=capacity)
+            USER_TO_CAPACITY.objects.create(username=user,name=name, capacity=capacity)
             messages.success(request, '注册成功！')
             return redirect('login')
 
