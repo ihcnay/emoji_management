@@ -1,0 +1,19 @@
+<h1>用户统计信息</h1>
+<ul>
+    <li>总用户数: {{ stats.total_users }}</li>
+    <li>学生数: {{ stats.total_students }}</li>
+    <li>教师数: {{ stats.total_teachers }}</li>
+    <li>管理员数: {{ stats.total_admins }}</li>
+</ul>
+<table>
+    <tr>
+        <th>用户名</th>
+        <th>邮箱</th>
+    </tr>
+    {% for user in users %}
+    <tr>
+        <td>{{ user.username }}</td>
+        <td>{{ user.email }}</td>
+    </tr>
+    {% endfor %}
+</table>

@@ -79,9 +79,9 @@ WSGI_APPLICATION = "emoji_management.wsgi.application"
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'selab',  # 你的数据库名称 数据库需要自己提前建好
+        'NAME': 'emoji',  # 你的数据库名称 数据库需要自己提前建好
         'USER': 'root',  # 你的数据库用户名
-        'PASSWORD': '515210',  # 你的数据库密码
+        'PASSWORD': 'misiks123',  # 你的数据库密码
         # 'HOST': '192.168.1.128',  # 你的数据库主机，留空默认为localhost
         'PORT': '3306',  # 你的数据库端口
     }

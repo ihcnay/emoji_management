@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
 from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import user_passes_test
 import json
 
 
@@ -137,33 +138,44 @@ def user_home(request):
 
 @login_required
 def admin_home(request):
-    # 检查用户是否为管理员
-    user = request.user
+    # 确保用户是管理员
     try:
-        user_capacity = USER_TO_CAPACITY.objects.get(username=user).capacity
+        user_capacity = USER_TO_CAPACITY.objects.get(username=request.user).capacity
+        if user_capacity != 3:
+            return render(request, 'error_page.html', {'error_message': "无权限访问该页面。"})
     except USER_TO_CAPACITY.DoesNotExist:
         return render(request, 'error_page.html', {'error_message': "用户未绑定身份。"})
 
-    if user_capacity != 3:  # 如果不是管理员，跳转到错误页面
-        return render(request, 'error_page.html', {'error_message': "无权限访问该页面。"})
+    # 统计用户信息
+    users = User.objects.all()
+    user_stats = {
+        'total_users': users.count(),
+        'total_students': USER_TO_CAPACITY.objects.filter(capacity=1).count(),
+        'total_teachers': USER_TO_CAPACITY.objects.filter(capacity=2).count(),
+        'total_admins': USER_TO_CAPACITY.objects.filter(capacity=3).count(),
+    }
 
-    # 查询所有课程信息
+    # 获取课程信息
     all_classes = Class.objects.all()
-
-    # 统计课程总数和学生人数等信息（可选）
     class_stats = []
     for cls in all_classes:
-        student_count = cls.students.count()  # Class 模型有一个 ManyToManyField 关联到学生
+        student_count = cls.students.count()
         class_stats.append({
             'class': cls,
             'student_count': student_count,
         })
 
-    # 将所有课程信息传递到模板
+    # 获取消息信息
+    messages = EMOJI_MESSAGE.objects.all()
+    message_stats = {
+        'total_messages': messages.count(),
+    }
+
+    # 渲染模板
     return render(request, 'admin_home.html', {
-        'all_classes': all_classes,
+        'user_stats': user_stats,
         'class_stats': class_stats,
-        'total_classes': all_classes.count(),
+        'message_stats': message_stats,
     })
 
 
@@ -354,40 +366,163 @@ def remove_student_from_course(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+# 检查用户是否为教师
+def is_teacher(user):
+    try:
+        return user.is_authenticated and USER_TO_CAPACITY.objects.get(username=user).capacity == 2
+    except USER_TO_CAPACITY.DoesNotExist:
+        return False
 
-def view_all(request):  ##教师查看某课程的统计信息
-    pass
+# 检查用户是否为管理员
+def is_admin(user):
+    try:
+        return user.is_authenticated and USER_TO_CAPACITY.objects.get(username=user).capacity == 3
+    except USER_TO_CAPACITY.DoesNotExist:
+        return False
+    
+@user_passes_test(is_teacher)
+def view_all(request):
+    """教师查看某课程的统计信息"""
+    classid = request.GET.get('classid')
+    cls = get_object_or_404(Class, classid=classid)
+    student_count = cls.students.count()
+    message_count = EMOJI_MESSAGE.objects.filter(classid=cls).count()
 
-
-def export_to_xxx(request):  ##课程信息导出
-    pass
-
-
-def adm_user(request):  ##管理员查看用户数据的统计
-    pass
-
-
-def adm_add_user(request):  ##管理员可增加用户
-    pass
-
-
-def adm_del_user(request):  ##管理员可删除用户
-    pass
-
-
-def adm_class(request):  ##管理员点击某课程
-    pass
-
-
-def adm_del_msg(request):  # 管理员有权限删除消息
-    pass
-
-
-def adm_add_class(request):  # 管理员有权限增删课程
-    pass
+    stats = {
+        'student_count': student_count,
+        'message_count': message_count,
+        'class': cls,
+    }
+    return render(request, 'teacher/course_stats.html', {'stats': stats})
 
 
+
+@user_passes_test(is_teacher)
+def export_to_xxx(request):
+    """导出课程的学生信息为 CSV"""
+    classid = request.GET.get('classid')
+    cls = get_object_or_404(Class, classid=classid)
+    students = cls.students.all()
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{cls.classid}_students.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['Student ID', 'Username', 'Email'])
+
+    for student in students:
+        writer.writerow([student.id, student.username, student.email])
+    
+    return response
+
+
+@user_passes_test(is_admin)
+def adm_user(request):
+    """管理员查看用户数据统计"""
+    users = User.objects.all()
+    stats = {
+        'total_users': users.count(),
+        'total_students': USER_TO_CAPACITY.objects.filter(capacity=1).count(),
+        'total_teachers': USER_TO_CAPACITY.objects.filter(capacity=2).count(),
+        'total_admins': USER_TO_CAPACITY.objects.filter(capacity=3).count(),
+    }
+    return render(request, 'admin/user_stats.html', {'stats': stats, 'users': users})
+
+
+@csrf_exempt
+@login_required
+def adm_add_user(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        email = request.POST.get('email')
+        capacity = int(request.POST.get('capacity'))  # 1: 学生, 2: 教师, 3: 管理员
+
+        if User.objects.filter(username=username).exists():
+            return JsonResponse({'success': False, 'error': '用户名已存在！'})
+
+        user = User.objects.create_user(username=username, password=password, email=email)
+        USER_TO_CAPACITY.objects.create(username=user, capacity=capacity)
+        return JsonResponse({'success': True})
+    
+    return JsonResponse({'success': False, 'error': '无效的请求！'})
+
+
+@csrf_exempt
+@login_required
+def adm_del_user(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        try:
+            user = User.objects.get(username=username)
+            user.delete()
+            return JsonResponse({'success': True})
+        except User.DoesNotExist:
+            return JsonResponse({'success': False, 'error': '用户不存在！'})
+    return JsonResponse({'success': False, 'error': '无效的请求！'})
+
+
+
+@user_passes_test(is_admin)
+def adm_class(request):
+    """管理员查看课程详情"""
+    classid = request.GET.get('classid')
+    cls = get_object_or_404(Class, classid=classid)
+    students = cls.students.all()
+
+    return render(request, 'admin/class_detail.html', {'class': cls, 'students': students})
+
+
+
+@csrf_exempt
+@login_required
+def adm_del_msg(request):
+    if request.method == 'POST':
+        msg_id = request.POST.get('msg_id')
+        try:
+            message = EMOJI_MESSAGE.objects.get(id=msg_id)
+            message.delete()
+            return JsonResponse({'success': True})
+        except EMOJI_MESSAGE.DoesNotExist:
+            return JsonResponse({'success': False, 'error': '消息不存在！'})
+    return JsonResponse({'success': False, 'error': '无效的请求！'})
+
+
+
+@csrf_exempt
+@login_required
+def adm_add_class(request):
+    if request.method == 'POST':
+        classid = request.POST.get('classid')
+        classname = request.POST.get('classname')
+        teacher_id = request.POST.get('teacher_id')
+
+        if Class.objects.filter(classid=classid).exists():
+            return JsonResponse({'success': False, 'error': '课程ID已存在！'})
+
+        try:
+            teacher = User.objects.get(id=teacher_id)
+            cls = Class.objects.create(classid=classid, classname=classname, teacher=teacher)
+            return JsonResponse({'success': True})
+        except User.DoesNotExist:
+            return JsonResponse({'success': False, 'error': '教师不存在！'})
+
+    return JsonResponse({'success': False, 'error': '无效的请求！'})
+
+
+
+@csrf_exempt
+@login_required
 def adm_del_class(request):
-    pass
+    if request.method == 'POST':
+        classid = request.POST.get('classid')
+        try:
+            cls = Class.objects.get(classid=classid)
+            cls.delete()
+            return JsonResponse({'success': True})
+        except Class.DoesNotExist:
+            return JsonResponse({'success': False, 'error': '课程不存在！'})
+    return JsonResponse({'success': False, 'error': '无效的请求！'})
+
+
 
 # emoji管理暂定

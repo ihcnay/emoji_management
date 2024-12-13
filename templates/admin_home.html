@@ -1,29 +1,171 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>管理员主页</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员首页</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    <h1>欢迎管理员 {{ user.username }}</h1>
-    <h2>课程统计信息</h2>
-    <p>总课程数: {{ total_classes }}</p>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>课程名称</th>
-                <th>教师</th>
-                <th>学生人数</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for stat in class_stats %}
-                <tr>
-                    <td>{{ stat.class.name }}</td>
-                    <td>{{ stat.class.teacher.username }}</td>
-                    <td>{{ stat.student_count }}</td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</body>
-</html>
+    <div class="container my-4">
+        <h1 class="text-center mb-4">管理员首页</h1>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">用户统计</div>
+                    <div class="card-body">
+                        <p><strong>总用户数:</strong> {{ user_stats.total_users }}</p>
+                        <p><strong>学生总数:</strong> {{ user_stats.total_students }}</p>
+                        <p><strong>教师总数:</strong> {{ user_stats.total_teachers }}</p>
+                        <p><strong>管理员总数:</strong> {{ user_stats.total_admins }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-success text-white">课程统计</div>
+                    <div class="card-body">
+                        <p><strong>课程总数:</strong> {{ class_stats|length }}</p>
+                        <ul class="list-group">
+                            {% for stat in class_stats %}
+                                <li class="list-group-item">{{ stat.class.classname }} - 学生人数: {{ stat.student_count }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">消息统计</div>
+                    <div class="card-body">
+                        <p><strong>总消息数:</strong> {{ message_stats.total_messages }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="mb-3">操作</h2>
+
+        <div class="row">
+            <!-- 添加用户 -->
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">添加用户</div>
+                    <div class="card-body">
+                        <form method="POST" action="{% url 'adm_add_user' %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="username" class="form-label">用户名</label>
+                                <input type="text" class="form-control" id="username" name="username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">密码</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">邮箱</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="capacity" class="form-label">身份</label>
+                                <select class="form-select" id="capacity" name="capacity">
+                                    <option value="1">学生</option>
+                                    <option value="2">教师</option>
+                                    <option value="3">管理员</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">添加用户</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 删除用户 -->
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">删除用户</div>
+                    <div class="card-body">
+                        <form method="POST" action="{% url 'adm_del_user' %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="del-username" class="form-label">用户名</label>
+                                <input type="text" class="form-control" id="del-username" name="username" required>
+                            </div>
+                            <button type="submit" class="btn btn-danger">删除用户</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 添加课程 -->
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">添加课程</div>
+                    <div class="card-body">
+                        <form method="POST" action="{% url 'adm_add_class' %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="classid" class="form-label">课程ID</label>
+                                <input type="text" class="form-control" id="classid" name="classid" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="classname" class="form-label">课程名称</label>
+                                <input type="text" class="form-control" id="classname" name="classname" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="teacher_id" class="form-label">教师ID</label>
+                                <input type="text" class="form-control" id="teacher_id" name="teacher_id" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">添加课程</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 删除课程 -->
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">删除课程</div>
+                    <div class="card-body">
+                        <form method="POST" action="{% url 'adm_del_class' %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="del-classid" class="form-label">课程ID</label>
+                                <input type="text" class="form-control" id="del-classid" name="classid" required>
+                            </div>
+                            <button type="submit" class="btn btn-danger">删除课程</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 删除消息 -->
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">删除消息</div>
+                    <div class="card-body">
+                        <form method="POST" action="{% url 'adm_del_msg' %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="msg_id" class="form-label">消息ID</label>
+                                <input type="text" class="form-control" id="msg_id" name="msg_id" required>
+                            </div>
+                            <button type="submit" class="btn btn-warning">删除消息</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>已将模板使用 Bootstrap 进行美化，布局现代化且响应式。如果有任何进一步的需求，请告诉我！
