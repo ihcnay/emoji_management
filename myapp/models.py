@@ -13,6 +13,7 @@ class USER_TO_CAPACITY(models.Model):
 
     username = models.OneToOneField(User, on_delete=models.CASCADE)
     capacity = models.IntegerField(choices=CAPACITY_CHOICES)
+    name = models.CharField(max_length=255, blank=True, null=True)  # 可为空的name字段
 
 
 class Class(models.Model):
