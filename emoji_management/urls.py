@@ -16,7 +16,10 @@ urlpatterns = [
     path('remove_student_from_course/', views.remove_student_from_course, name='remove_student_from_course'),
     path('edit_teacher/<int:classid>/', views.edit_teacher, name='edit_teacher'),  # 修改教师接口
     path('manage-emoji/', views.manage_emoji, name='manage_emoji'),
+    path('remove_emoji/', views.remove_emoji, name='remove_emoji'),
     path('remove_course/<str:classid>/', views.remove_course, name='remove_course'),
     path('admin_class_detail/<str:classid>/', views.admin_class_detail, name='admin_class_detail'),
     path('delete_message/<int:message_id>/', views.delete_message, name='delete_message'),
+    path('add_user/',views.add_user, name='add_user'),
+    path('delete_user/', views.delete_user, name='delete_user'),
 ]

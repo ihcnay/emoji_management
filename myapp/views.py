@@ -12,6 +12,7 @@ from django.shortcuts import render, HttpResponseRedirect,get_object_or_404
 from django.db.models import Count
 from django.core.paginator import Paginator
 from django.conf import settings
+from django.db import transaction
 
 
 def user_login(request):
@@ -165,6 +166,8 @@ def admin_home(request):
             'classid': cls.classid,
             'student_count': cls.students.count(),
             'message_count': EMOJI_MESSAGE.objects.filter(classid=cls).count(),  # 获取消息数
+            'teacher_name': USER_TO_CAPACITY.objects.filter(
+                username=cls.teacher).first().name if cls.teacher else "未设置教师姓名",
         }
         for cls in all_classes
     ]
@@ -180,7 +183,8 @@ def admin_home(request):
     user_stats = [
         {
             'user': user,
-            'capacity': USER_TO_CAPACITY.objects.get(username=user).capacity
+            'capacity': USER_TO_CAPACITY.objects.get(username=user).capacity,
+            'name': USER_TO_CAPACITY.objects.filter(username=user).first().name or "*未设置姓名*",
         }
         for user in users_sorted_by_login
     ]
@@ -227,6 +231,33 @@ def manage_emoji(request):
             "message": "Emoji 已成功保存。",
             "created": created  # True 如果新建，False 如果更新
         })
+
+    return JsonResponse({"success": False, "message": "仅支持 POST 请求。"})
+
+
+def remove_emoji(request):
+    """API endpoint to remove an emoji."""
+    if request.method == "POST":
+        try:
+            # Parse the incoming JSON payload
+            data = json.loads(request.body)
+            emoji_id = data.get("emojiId")
+
+            if not emoji_id:
+                return JsonResponse({"success": False, "message": "未提供有效的 Emoji ID。"})
+
+            # Locate the emoji record
+            emoji = EMOJI.objects.get(id=emoji_id)
+
+            # Remove the database entry
+            emoji.delete()
+
+            return JsonResponse({"success": True, "message": "Emoji 已成功移除。"})
+
+        except EMOJI.DoesNotExist:
+            return JsonResponse({"success": False, "message": "指定的 Emoji 不存在。"})
+        except Exception as e:
+            return JsonResponse({"success": False, "message": f"移除过程中出现错误: {str(e)}"})
 
     return JsonResponse({"success": False, "message": "仅支持 POST 请求。"})
 
@@ -586,4 +617,75 @@ def delete_message(request, message_id):
     # 如果请求方法不是 POST，返回失败
     return JsonResponse({'error': '请求方法错误'}, status=400)
 
-# emoji管理暂定
+
+@login_required
+@require_POST
+def add_user(request):
+    try:
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        real_name = request.POST.get('real_name')  # 真实姓名
+        capacity = request.POST.get('capacity')  # 身份: 1=学生, 2=教师, 3=管理员
+
+        # 检查必填字段是否完整
+        if not username or not email or not password or not real_name or not capacity:
+            return JsonResponse({'success': False, 'error': '用户名、邮箱、密码、真实姓名和身份是必填项！'}, status=400)
+
+        # 检查邮箱是否已被注册
+        if User.objects.filter(email=email).exists():
+            return JsonResponse({'success': False, 'error': '邮箱已被注册！'}, status=400)
+
+        # 检查用户名是否已存在
+        if User.objects.filter(username=username).exists():
+            return JsonResponse({'success': False, 'error': '用户名已存在！'}, status=400)
+
+        # 创建用户及其身份绑定
+        with transaction.atomic():
+            user = User.objects.create_user(username=username, email=email, password=password)
+            USER_TO_CAPACITY.objects.create(username=user, name=real_name, capacity=int(capacity))
+
+        return JsonResponse({'success': True, 'message': '用户创建成功！'}, status=201)
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def delete_user(request):
+    try:
+        user_id = request.POST.get('user_id')
+        user_to_delete = get_object_or_404(User, id=user_id)
+
+        # 检查用户是否为管理员
+        try:
+            user_capacity = USER_TO_CAPACITY.objects.get(username=user_to_delete)
+            if user_capacity.capacity == 3:  # 管理员
+                return JsonResponse({'success': False, 'error': '无法删除管理员用户！'}, status=403)
+        except USER_TO_CAPACITY.DoesNotExist:
+            return JsonResponse({'success': False, 'error': '用户身份信息未绑定！'}, status=400)
+
+        # 删除用户及其关联数据
+        with transaction.atomic():
+            if user_capacity.capacity == 1:  # 学生
+                # 删除学生加入的课程
+                for course in user_to_delete.student_classes.all():
+                    course.students.remove(user_to_delete)
+
+            elif user_capacity.capacity == 2:  # 教师
+                # 删除教师教授的课程及其相关消息
+                for course in Class.objects.filter(teacher=user_to_delete):
+                    EMOJI_MESSAGE.objects.filter(classid=course).delete()  # 删除课程相关消息
+                    course.delete()  # 删除课程
+
+            # 删除用户发送的消息
+            EMOJI_MESSAGE.objects.filter(sender=user_to_delete).delete()
+
+            # 删除用户的身份绑定和用户本身
+            user_capacity.delete()
+            user_to_delete.delete()
+
+        return JsonResponse({'success': True, 'message': '用户删除成功！'}, status=200)
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

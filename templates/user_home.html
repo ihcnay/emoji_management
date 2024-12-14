@@ -44,31 +44,37 @@
             </tr>
         </thead>
         <tbody>
-            {% for cls in classes %}
+            {% if classes %}
+                {% for cls in classes %}
+                    <tr>
+                        <td>{{ cls.classid }}</td>
+                        <td>{{ cls.classname }}</td>
+                        <td>{{ cls.students.count }}</td>
+                        <td>
+                            <!-- 点击链接跳转到课程详情 -->
+                            <a href="{% url 'course_detail' cls.classid %}">进入课程</a>
+                            {% if is_teacher %}
+                                <!-- 添加学生按钮 -->
+                                <button class="btn btn-info btn-sm" data-bs-toggle="modal"
+                                        data-bs-target="#addStudentModal"
+                                        data-classid="{{ cls.classid }}">
+                                    添加学生
+                                </button>
+                                <!-- 查看学生按钮 -->
+                                <button class="btn btn-info btn-sm" data-bs-toggle="modal"
+                                        data-bs-target="#viewStudentsModal"
+                                        data-classid="{{ cls.classid }}">
+                                    查看学生
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% else %}
                 <tr>
-                    <td>{{ cls.classid }}</td>
-                    <td>{{ cls.classname }}</td>
-                    <td>{{ cls.students.count }}</td>  <!-- 显示学生人数 -->
-                    <td>
-                        <!-- 点击链接跳转到课程详情 -->
-                        <a href="{% url 'course_detail' cls.classid %}">进入课程</a>
-                         {% if is_teacher %}
-                            <!-- 添加学生按钮 -->
-                            <button class="btn btn-secondary btn-sm" data-bs-toggle="modal"
-                                    data-bs-target="#addStudentModal"
-                                    data-classid="{{ cls.classid }}">
-                                添加学生
-                            </button>
-                            <!-- 查看学生按钮 -->
-                            <button class="btn btn-info btn-sm" data-bs-toggle="modal"
-                                    data-bs-target="#viewStudentsModal"
-                                    data-classid="{{ cls.classid }}">
-                                查看学生
-                            </button>
-                        {% endif %}
-                    </td>
+                    <td colspan="4" class="text-center">未加入任何课程</td>
                 </tr>
-            {% endfor %}
+            {% endif %}
         </tbody>
     </table>
     </div>
