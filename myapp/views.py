@@ -275,6 +275,11 @@ def course_detail(request, classid):
         emojis = EMOJI.objects.all()  # 获取所有表情
         msgs = EMOJI_MESSAGE.objects.filter(classid=course)  # 获取该课程的消息
 
+        try:
+            teacher_capacity = USER_TO_CAPACITY.objects.get(username=course.teacher)
+            teacher_name = teacher_capacity.name if teacher_capacity.name else "未提供姓名"
+        except USER_TO_CAPACITY.DoesNotExist:
+            teacher_name = "未找到教师信息"
         # 统计表情消息
         total_emoji_count = msgs.exclude(emoji_id__isnull=True).count()  # 总发送表情数
         top_5_emojis = (
@@ -297,6 +302,7 @@ def course_detail(request, classid):
 
         return render(request, 'course_detail.html', {
             'course': course,
+            'teacher_name':teacher_name,
             'total_students': total_students,
             'emojis': emojis,
             'messages': msgs,
@@ -367,11 +373,23 @@ def admin_class_detail(request, classid):
     except Class.DoesNotExist:
         return JsonResponse({"message": "课程不存在"}, status=404)
 
+    try:
+        teacher_capacity = USER_TO_CAPACITY.objects.get(username=course.teacher)
+        teacher_name = teacher_capacity.name if teacher_capacity.name else "未提供姓名"
+    except USER_TO_CAPACITY.DoesNotExist:
+        teacher_name = "未找到教师信息"
+
     students = course.students.all()
     student_info = []
     for student in students:
+        try:
+            user_to_capacity = USER_TO_CAPACITY.objects.get(username=student)
+            student_name = user_to_capacity.name  # 从 USER_TO_CAPACITY 获取学生姓名
+        except USER_TO_CAPACITY.DoesNotExist:
+            student_name = "未设置姓名"  # 若未绑定扩展信息，设置默认值
         student_info.append({
             'id':student.id,
+            'name': student_name,
             'username': student.username,
             'email': student.email,
         })
@@ -391,6 +409,7 @@ def admin_class_detail(request, classid):
 
     context = {
         'course': course,
+        'teacher_name': teacher_name,
         'student_info': student_info,
         'total_students': total_students,
         'messages': messages,
@@ -400,6 +419,33 @@ def admin_class_detail(request, classid):
         },
     }
     return render(request, 'admin_class_detail.html', context)
+
+
+@login_required
+def edit_teacher(request, classid):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            teacher_username = data.get("teacher_username")
+
+            if not teacher_username:
+                return JsonResponse({"error": "教师用户名不能为空"}, status=400)
+
+            new_teacher = User.objects.get(username=teacher_username)
+            course = Class.objects.get(classid=classid)
+
+            course.teacher = new_teacher
+            course.save()
+
+            return JsonResponse({"success": True})
+        except User.DoesNotExist:
+            return JsonResponse({"error": "教师用户不存在"}, status=404)
+        except Class.DoesNotExist:
+            return JsonResponse({"error": "课程不存在"}, status=404)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "无效的请求方法"}, status=405)
 
 
 @csrf_exempt

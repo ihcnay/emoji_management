@@ -53,7 +53,11 @@
             </tr>
             <tr>
                 <th>教师ID</th>
-                <td>{{ course.teacher.username }}</td>
+                <td>{{ course.teacher.username|default:"未设置教师" }}</td>
+            </tr>
+            <tr>
+            <th>教师姓名</th>
+                <td>{{ teacher_name|default:"未设置姓名"  }}</td>
             </tr>
             <tr>
                 <th>学生人数</th>
@@ -61,6 +65,7 @@
             </tr>
         </table>
         <div class="d-flex gap-2">
+            <button class="btn btn-warning" onclick="showEditTeacherModal()">修改教师</button>
             <!-- 使用AJAX提交表单 -->
             <form id="remove-course-form" method="POST">
                 {% csrf_token %}
@@ -75,6 +80,7 @@
             <thead>
                 <tr>
                     <th>用户名</th>
+                    <th>真实姓名</th>
                     <th>邮箱</th>
                     <th>可选操作</th>
                 </tr>
@@ -83,6 +89,7 @@
                 {% for student in student_info %}
                     <tr>
                         <td>{{ student.username }}</td>
+                        <td>{{ student.name|default:"未设置姓名" }}</td>
                         <td>{{ student.email }}</td>
                         <td>
                             <!-- "从课程移除"按钮 -->
@@ -168,7 +175,66 @@
             </div>
         </div>
     </div>
+<!--修改教师模态框-->
+    <div class="modal fade" id="editTeacherModal" tabindex="-1" aria-labelledby="editTeacherModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editTeacherModalLabel">修改教师</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="edit-teacher-form">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="teacher-username" class="form-label">教师用户名</label>
+                            <input type="text" class="form-control" id="teacher-username" name="teacher_username" placeholder="输入新的教师用户名">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="submitEditTeacher()">确认修改</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <script>
+    // 显示模态框
+    function showEditTeacherModal() {
+        const modal = new bootstrap.Modal(document.getElementById('editTeacherModal'));
+        modal.show();
+    }
+
+    // 提交修改教师请求
+    function submitEditTeacher() {
+        const teacherUsername = document.getElementById('teacher-username').value.trim();
+        if (!teacherUsername) {
+            alert("请输入教师用户名！");
+            return;
+        }
+
+        fetch("{% url 'edit_teacher' course.classid %}", { // 替换为后端接口
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({ teacher_username: teacherUsername })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert("教师信息修改成功！");
+                location.reload(); // 刷新页面以显示新的教师信息
+            } else {
+                alert("修改失败：" + (data.error || "未知错误"));
+            }
+        })
+        .catch(error => {
+            alert("请求失败：" + error.message);
+        });
+    }
         // 该脚本将在页面加载完成后，将 #messages-container 滚动到最底部
         document.addEventListener("DOMContentLoaded", function() {
             var messagesContainer = document.getElementById("messages-container");

@@ -48,6 +48,10 @@
                 <td>{{ course.teacher.username }}</td>
             </tr>
             <tr>
+            <th>教师姓名</th>
+                <td>{{ teacher_name|default:"未设置姓名"  }}</td>
+            </tr>
+            <tr>
                 <th>学生人数</th>
                 <td>{{ total_students|default:"0" }}</td>  <!-- 显示总学生人数 -->
             </tr>
