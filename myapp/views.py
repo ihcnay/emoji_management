@@ -12,6 +12,7 @@ from django.shortcuts import render, HttpResponseRedirect,get_object_or_404
 from django.db.models import Count
 from django.core.paginator import Paginator
 from django.conf import settings
+from django.db import transaction
 
 
 def user_login(request):
@@ -205,6 +206,77 @@ def admin_home(request):
         'total_emoji':total_emoji,
     })
 
+@login_required
+@require_POST
+def add_user(request):
+    try:
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        real_name = request.POST.get('real_name')  # 真实姓名
+        capacity = request.POST.get('capacity')  # 身份: 1=学生, 2=教师, 3=管理员
+
+        # 检查必填字段是否完整
+        if not username or not email or not password or not real_name or not capacity:
+            return JsonResponse({'success': False, 'error': '用户名、邮箱、密码、真实姓名和身份是必填项！'}, status=400)
+
+        # 检查邮箱是否已被注册
+        if User.objects.filter(email=email).exists():
+            return JsonResponse({'success': False, 'error': '邮箱已被注册！'}, status=400)
+
+        # 检查用户名是否已存在
+        if User.objects.filter(username=username).exists():
+            return JsonResponse({'success': False, 'error': '用户名已存在！'}, status=400)
+
+        # 创建用户及其身份绑定
+        with transaction.atomic():
+            user = User.objects.create_user(username=username, email=email, password=password)
+            USER_TO_CAPACITY.objects.create(username=user, name=real_name, capacity=int(capacity))
+
+        return JsonResponse({'success': True, 'message': '用户创建成功！'}, status=201)
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def delete_user(request):
+    try:
+        user_id = request.POST.get('user_id')
+        user_to_delete = get_object_or_404(User, id=user_id)
+
+        # 检查用户是否为管理员
+        try:
+            user_capacity = USER_TO_CAPACITY.objects.get(username=user_to_delete)
+            if user_capacity.capacity == 3:  # 管理员
+                return JsonResponse({'success': False, 'error': '无法删除管理员用户！'}, status=403)
+        except USER_TO_CAPACITY.DoesNotExist:
+            return JsonResponse({'success': False, 'error': '用户身份信息未绑定！'}, status=400)
+
+        # 删除用户及其关联数据
+        with transaction.atomic():
+            if user_capacity.capacity == 1:  # 学生
+                # 删除学生加入的课程
+                for course in user_to_delete.student_classes.all():
+                    course.students.remove(user_to_delete)
+
+            elif user_capacity.capacity == 2:  # 教师
+                # 删除教师教授的课程及其相关消息
+                for course in Class.objects.filter(teacher=user_to_delete):
+                    EMOJI_MESSAGE.objects.filter(classid=course).delete()  # 删除课程相关消息
+                    course.delete()  # 删除课程
+
+            # 删除用户发送的消息
+            EMOJI_MESSAGE.objects.filter(sender=user_to_delete).delete()
+
+            # 删除用户的身份绑定和用户本身
+            user_capacity.delete()
+            user_to_delete.delete()
+
+        return JsonResponse({'success': True, 'message': '用户删除成功！'}, status=200)
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 def manage_emoji(request):
     if request.method == "POST":
