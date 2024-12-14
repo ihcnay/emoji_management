@@ -319,14 +319,14 @@
             messageBox.fadeOut('slow', function () {
                 $(this).addClass('d-none');
             });
-        }, 5000); // 5秒后隐藏
+        }, 3000); // 5秒后隐藏
 
         // 禁用页面交互
         disablePageInteractions();
 
         setTimeout(() => {
             location.reload();
-        }, 5000);  // 5秒后刷新页面
+        }, 3000);  // 5秒后刷新页面
     }
 
     // 处理错误响应

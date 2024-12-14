@@ -93,7 +93,7 @@
                         <td>{{ student.email }}</td>
                         <td>
                             <!-- "从课程移除"按钮 -->
-                            <button class="btn btn-danger btn-sm" onclick="removeStudent('{{ course.classid }}', '{{ student.id }}')">
+                            <button class="btn btn-danger btn-sm" onclick="removeStudent('{{ course.classid }}', '{{ student.username }}')">
                                 从课程移除
                             </button>
                         </td>
@@ -242,11 +242,11 @@
         });
     </script>
     <script>
-        function removeStudent(classid, studentid) {
+        function removeStudent(classid, studentusername) {
             // 创建请求体
             const data = {
                 classid: classid,
-                studentid: studentid
+                studentid: studentusername
             };
 
             // 发送 AJAX 请求

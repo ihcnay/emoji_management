@@ -318,11 +318,16 @@ def course_detail(request, classid):
             .annotate(count=Count('emoji_id'))
             .order_by('-count')[:5]
         )
+        # 获取发送表情最多的 5 名学生
+        top_students = EMOJI_MESSAGE.objects.filter(classid=course).values('sender__username').annotate(
+            emoji_count=Count('emoji_id')
+        ).order_by('-emoji_count')[:5]
 
         # 将统计数据封装到字典中
         emoji_statistics = {
             'total_count': total_emoji_count,
             'top_emojis': top_5_emojis,
+            'top_students': top_students,
         }
 
         # 获取当前用户的角色
